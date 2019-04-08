@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package proto_log;
+
+
+message QueryShareLogTags {
+    string Hostname = 1;
+    int32 Pid = 2;
+}
+
+message BlockLog {
+    string worker_name = 1;
+    string server_ip   = 2;
+    string client_ip   = 3;
+    string user_name = 4;
+    string ext_name  = 5;
+    string user_agent = 6;
+    string host_name = 7;
+    int32  pid = 8;
+    int32  height = 9;
+    string hash = 10;
+}
+
+message QueryShareLogLatestTsRequest {
+    string  coin_type  = 1;
+    QueryShareLogTags tags = 2;
+}
+
+message QueryShareLogLatestTsResponse {
+    int64 latest_ts = 2;
+}
+
+message AddBlockLogRequest {
+    int64 ts = 1;
+    string coinType = 2;
+    BlockLog log = 3;
+}
+
+message AddBlockLogResponse {
+    bool result = 1;
+}
+
+message MinShareLog {
+   int32  tm =  1;
+   string worker_name = 2;
+   string server_ip   = 3;
+   string client_ip   = 4;
+   string user_name = 5;
+   string ext_name  = 6;
+   string user_agent = 7;
+   string host_name = 8;
+   int32  pid = 9;
+   int32  height = 10;
+   double compute_power = 11;
+   bool  is_right = 12;
+}
+
+
+message AddMinShareLogsRequest {
+    repeated MinShareLog logs = 1;
+    string coinType = 2;
+}
+
+
+message AddMinShareLogsResponse {
+    bool result = 1;
+}
+
+service Log {
+    rpc QueryShareLogLatestTs(QueryShareLogLatestTsRequest) returns(QueryShareLogLatestTsResponse){}
+    rpc AddBlockLog(AddBlockLogRequest) returns (AddBlockLogResponse) {}
+    rpc AddMinShareLogs(AddMinShareLogsRequest) returns (AddMinShareLogsResponse) {}
+}
+
+
+

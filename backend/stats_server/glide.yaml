@@ -1,0 +1,33 @@
+package: github.com/himanhimao/lakepool/backend/stats_server
+import:
+- package: github.com/himanhimao/lakepool
+  subpackages:
+  - backend/proto_log
+  - backend/proto_stats
+- package: github.com/influxdata/influxdb1-client
+  subpackages:
+  - models
+  - v2
+- package: github.com/sirupsen/logrus
+- package: github.com/urfave/cli
+- package: golang.org/x/net
+  subpackages:
+  - context
+- package: golang.org/x/sys
+  subpackages:
+  - unix
+- package: golang.org/x/text
+  subpackages:
+  - secure
+- package: google.golang.org/grpc
+  subpackages:
+  - balancer/roundrobin
+  - codes
+  - reflection
+  - status
+- package: gopkg.in/oleiade/lane.v1
+- package: google.golang.org/genproto
+  subpackages:
+  - googleapis
+ignore:
+  - github.com/himanhimao/lakepool

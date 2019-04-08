@@ -1,0 +1,20 @@
+package: github.com/himanhimao/lakepool/backend/log_server
+import:
+- package: github.com/himanhimao/lakepool
+  subpackages:
+  - backend/proto_log
+- package: github.com/influxdata/influxdb1-client
+  subpackages:
+  - v2
+- package: github.com/sirupsen/logrus
+- package: github.com/urfave/cli
+- package: golang.org/x/net
+  subpackages:
+  - context
+- package: google.golang.org/grpc
+  subpackages:
+  - codes
+  - reflection
+  - status
+ignore:
+- github.com/himanhimao/lakepool

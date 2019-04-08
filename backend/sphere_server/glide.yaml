@@ -1,0 +1,25 @@
+package: github.com/himanhimao/lakepool/backend/sphere_server
+import:
+- package: github.com/btcsuite/btcd
+  subpackages:
+  - blockchain
+  - chaincfg
+  - chaincfg/chainhash
+  - txscript
+  - wire
+- package: github.com/btcsuite/btcutil
+- package: github.com/gomodule/redigo
+  subpackages:
+  - redis
+- package: github.com/sirupsen/logrus
+- package: github.com/urfave/cli
+- package: golang.org/x/net
+  subpackages:
+  - context
+- package: google.golang.org/grpc
+  subpackages:
+  - codes
+  - reflection
+  - status
+ignore:
+  - github.com/himanhimao/lakepool

@@ -1,0 +1,18 @@
+package: github.com/himanhimao/lakepool/backend/stratum_server
+import:
+- package: github.com/davyxu/cellnet
+  subpackages:
+  - codec
+  - codec/json
+  - peer
+  - proc
+  - util
+- package: github.com/prep/average
+- package: github.com/sirupsen/logrus
+- package: github.com/urfave/cli
+- package: google.golang.org/grpc
+  subpackages:
+  - balancer/roundrobin
+- package: gopkg.in/yaml.v2
+ignore:
+  - github.com/himanhimao/lakepool
