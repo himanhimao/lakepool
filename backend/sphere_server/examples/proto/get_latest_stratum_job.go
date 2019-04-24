@@ -1,7 +1,7 @@
 package proto
 
 import (
-	pb "github.com/himanhimao/lakepool/backend/proto_sphere"
+	pb "github.com/himanhimao/lakepool_proto/backend/proto_sphere"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"log"

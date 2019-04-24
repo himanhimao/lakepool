@@ -2,7 +2,7 @@ package sphere
 
 import (
 	"github.com/himanhimao/lakepool/backend/stratum_server/internal/pkg/service"
-	pb "github.com/himanhimao/lakepool/backend/proto_sphere"
+	pb "github.com/himanhimao/lakepool_proto/backend/proto_sphere"
 	"context"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"

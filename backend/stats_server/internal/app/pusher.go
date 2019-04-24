@@ -1,7 +1,7 @@
 package app
 
 import (
-	pb "github.com/himanhimao/lakepool/backend/proto_log"
+	pb "github.com/himanhimao/lakepool_proto/backend/proto_log"
 	"github.com/influxdata/influxdb1-client/v2"
 	"github.com/himanhimao/lakepool/backend/stats_server/internal/pkg/conf"
 	"sync"

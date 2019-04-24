@@ -3,7 +3,7 @@ package stats
 import (
 	"github.com/himanhimao/lakepool/backend/stratum_server/internal/pkg/conf"
 	"github.com/himanhimao/lakepool/backend/stratum_server/internal/pkg/service"
-	pb "github.com/himanhimao/lakepool/backend/proto_stats"
+	pb "github.com/himanhimao/lakepool_proto/backend/proto_stats"
 	"google.golang.org/grpc"
 	"time"
 	"context"

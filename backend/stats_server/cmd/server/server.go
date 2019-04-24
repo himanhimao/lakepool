@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/himanhimao/lakepool/backend/stats_server/internal/pkg/conf"
-	pb "github.com/himanhimao/lakepool/backend/proto_stats"
+	pb "github.com/himanhimao/lakepool_proto/backend/proto_stats"
 	"github.com/urfave/cli"
 	"os"
 	"time"

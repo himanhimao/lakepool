@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/himanhimao/lakepool/backend/log_server/internal/pkg/conf"
 	impl "github.com/himanhimao/lakepool/backend/log_server/internal/app"
-	pb "github.com/himanhimao/lakepool/backend/proto_log"
+	pb "github.com/himanhimao/lakepool_proto/backend/proto_log"
 	"github.com/urfave/cli"
 	"os"
 	"time"

@@ -2,7 +2,7 @@ package app
 
 import (
 	"github.com/himanhimao/lakepool/backend/stats_server/internal/pkg/worker"
-	pb "github.com/himanhimao/lakepool/backend/proto_stats"
+	pb "github.com/himanhimao/lakepool_proto/backend/proto_stats"
 	"context"
 	"github.com/himanhimao/lakepool/backend/stats_server/internal/pkg/conf"
 	"google.golang.org/grpc/status"

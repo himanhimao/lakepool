@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/himanhimao/lakepool/backend/sphere_server/internal/pkg/conf"
-	pb "github.com/himanhimao/lakepool/backend/proto_sphere"
+	pb "github.com/himanhimao/lakepool_proto/backend/proto_sphere"
 	"github.com/urfave/cli"
 	"os"
 	"time"

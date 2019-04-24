@@ -1,7 +1,7 @@
 package impl
 
 import (
-	pb "github.com/himanhimao/lakepool/backend/proto_sphere"
+	pb "github.com/himanhimao/lakepool_proto/backend/proto_sphere"
 	"context"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/codes"

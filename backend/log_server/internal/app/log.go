@@ -3,7 +3,7 @@ package app
 import (
 	"github.com/influxdata/influxdb1-client/v2"
 	"github.com/himanhimao/lakepool/backend/log_server/internal/pkg/conf"
-	pb "github.com/himanhimao/lakepool/backend/proto_log"
+	pb "github.com/himanhimao/lakepool_proto/backend/proto_log"
 	"context"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/codes"
@@ -82,7 +82,6 @@ func (s *LogServer) QueryShareLogLatestTs(ctx context.Context, in *pb.QueryShare
 	}
 
 	var latestTs int64
-	fmt.Println("========================", result.Series, len(result.Series))
 	if len(result.Series) > 0 {
 		latestTs, _ = result.Series[0].Values[0][0].(json.Number).Int64()
 	}

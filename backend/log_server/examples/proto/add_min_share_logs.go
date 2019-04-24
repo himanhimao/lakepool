@@ -1,7 +1,7 @@
 package main
 
 import (
-	pb "github.com/himanhimao/lakepool/backend/proto_log"
+	pb "github.com/himanhimao/lakepool_proto/backend/proto_log"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"log"
