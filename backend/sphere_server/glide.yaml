@@ -11,6 +11,9 @@ import:
 - package: github.com/gomodule/redigo
   subpackages:
   - redis
+- package: github.com/himanhimao/lakepool_proto
+  subpackages:
+  - backend/proto_sphere
 - package: github.com/sirupsen/logrus
 - package: github.com/urfave/cli
 - package: golang.org/x/net
@@ -21,5 +24,3 @@ import:
   - codes
   - reflection
   - status
-ignore:
-  - github.com/himanhimao/lakepool

@@ -7,6 +7,11 @@ import:
   - peer
   - proc
   - util
+- package: github.com/himanhimao/lakepool_proto
+  subpackages:
+  - backend/proto_log
+  - backend/proto_sphere
+  - backend/proto_stats
 - package: github.com/prep/average
 - package: github.com/sirupsen/logrus
 - package: github.com/urfave/cli
@@ -14,5 +19,3 @@ import:
   subpackages:
   - balancer/roundrobin
 - package: gopkg.in/yaml.v2
-ignore:
-  - github.com/himanhimao/lakepool

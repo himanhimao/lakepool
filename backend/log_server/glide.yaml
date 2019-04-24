@@ -1,6 +1,6 @@
 package: github.com/himanhimao/lakepool/backend/log_server
 import:
-- package: github.com/himanhimao/lakepool
+- package: github.com/himanhimao/lakepool_proto
   subpackages:
   - backend/proto_log
 - package: github.com/influxdata/influxdb1-client
@@ -16,5 +16,3 @@ import:
   - codes
   - reflection
   - status
-ignore:
-- github.com/himanhimao/lakepool

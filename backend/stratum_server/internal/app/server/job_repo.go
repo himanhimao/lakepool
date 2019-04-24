@@ -4,6 +4,7 @@ import (
 	"github.com/himanhimao/lakepool/backend/stratum_server/internal/pkg/service"
 	"sync"
 	"time"
+	log "github.com/sirupsen/logrus"
 	"context"
 )
 

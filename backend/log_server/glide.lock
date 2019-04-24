@@ -1,5 +1,5 @@
-hash: a5241c9a8bff953825d7bb9abf5eaca8e35571573c95ec02eae2a3136f69bd4f
-updated: 2019-04-05T21:23:48.984685+08:00
+hash: e26ed08a4d8dfb55263911a18e50cdad1d534212ae3317be153ece94b1de4eab
+updated: 2019-04-24T15:34:57.930459+08:00
 imports:
 - name: github.com/golang/protobuf
   version: b5d812f8a3706043e23a9cd5babf2e5423744d30
@@ -10,6 +10,10 @@ imports:
   - ptypes/any
   - ptypes/duration
   - ptypes/timestamp
+- name: github.com/himanhimao/lakepool_proto
+  version: a94ee9e0eb05449af8b206084c894cf56909fc21
+  subpackages:
+  - backend/proto_log
 - name: github.com/influxdata/influxdb1-client
   version: 8ff2fc3824fcb533795f9a2f233275f0bb18d6c5
   subpackages:
@@ -19,7 +23,7 @@ imports:
 - name: github.com/konsorten/go-windows-terminal-sequences
   version: f55edac94c9bbba5d6182a4be46d86a2c9b5b50e
 - name: github.com/sirupsen/logrus
-  version: 9b3cdde74fbe9443d704467498a7dcb61a79de9b
+  version: 8bdbc7bcc01dcbb8ec23dc8a28e332258d25251f
 - name: github.com/urfave/cli
   version: cfb38830724cc34fedffe9a2a29fb54fa9169cd1
 - name: golang.org/x/net
@@ -48,7 +52,7 @@ imports:
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc
-  version: 3507fb8e1a5ad030303c106fef3a47c9fdad16ad
+  version: 25c4f928eaa6d96443009bd842389fb4fa48664e
   subpackages:
   - balancer
   - balancer/base
@@ -63,6 +67,7 @@ imports:
   - grpclog
   - internal
   - internal/backoff
+  - internal/balancerload
   - internal/binarylog
   - internal/channelz
   - internal/envconfig

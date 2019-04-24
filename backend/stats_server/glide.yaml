@@ -1,6 +1,6 @@
 package: github.com/himanhimao/lakepool/backend/stats_server
 import:
-- package: github.com/himanhimao/lakepool
+- package: github.com/himanhimao/lakepool_proto
   subpackages:
   - backend/proto_log
   - backend/proto_stats
@@ -13,12 +13,6 @@ import:
 - package: golang.org/x/net
   subpackages:
   - context
-- package: golang.org/x/sys
-  subpackages:
-  - unix
-- package: golang.org/x/text
-  subpackages:
-  - secure
 - package: google.golang.org/grpc
   subpackages:
   - balancer/roundrobin
@@ -26,8 +20,3 @@ import:
   - reflection
   - status
 - package: gopkg.in/oleiade/lane.v1
-- package: google.golang.org/genproto
-  subpackages:
-  - googleapis
-ignore:
-  - github.com/himanhimao/lakepool
