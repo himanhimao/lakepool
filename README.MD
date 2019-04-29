@@ -37,22 +37,22 @@
 > log-server 
 ```
 cd lakepool/backend/log_server
-docker build -t lakepool/backend/log_server -f build/Dockerfile .
+docker build -t lakepool/backend_log_server -f build/Dockerfile .
 ```
 > sphere-server 
 ```
 cd lakepool/backend/sphere_server
-docker build -t lakepool/backend/sphere_server -f build/Dockerfile .
+docker build -t lakepool/backend_sphere_server -f build/Dockerfile .
 ```
 > stats-server 
 ```
 cd lakepool/backend/stats_server
-docker build -t lakepool/backend/stats_server -f build/Dockerfile .
+docker build -t lakepool/backend_stats_server -f build/Dockerfile .
 ```
 > stratum-server
 ```
 cd lakepool/backend/stratum_server
-docker build -t lakepool/backend/stratum_server -f build/Dockerfile .
+docker build -t lakepool/backend_stratum_server -f build/Dockerfile .
 ```
 ### K8S DEPLOYMENT
 

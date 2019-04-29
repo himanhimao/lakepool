@@ -133,24 +133,24 @@ func (c *BTCCoin) GetLatestStratumJob(registerId string, ctx *service.Register) 
 		for i, tx := range blockTemplateTransactions {
 			txHashes[i], _ = chainhash.NewHashFromStr(tx.Hash)
 			transactions[i] = service.NewBlockTransactionPart()
-			transactions[i].SetData(tx.Data)
+			transactions[i].Data = tx.Data
 		}
 		merkleBranch = makeMerkleBranch(txHashes)
 	}
 
 	stratumJobPart := service.NewStratumJobPart()
-	stratumJobPart.SetCoinBase1(coinBase1)
-	stratumJobPart.SetCoinBase2(coinBase2)
-	stratumJobPart.SetMerkleBranch(merkleBranch)
-	stratumJobPart.SetNBits(nBits)
-	stratumJobPart.SetVersion(fmt.Sprintf("%x", version))
-	stratumJobPart.SetPrevHash(prevBlockHash)
+	stratumJobPart.CoinBase1 = coinBase1
+	stratumJobPart.CoinBase2 = coinBase2
+	stratumJobPart.MerkleBranch = merkleBranch
+	stratumJobPart.NBits = nBits
+	stratumJobPart.Version = fmt.Sprintf("%x", version)
+	stratumJobPart.PrevHash = prevBlockHash
 
 	stratumJobMetaPart := service.NewStratumJobMetaPart()
-	stratumJobMetaPart.SetHeight(height)
-	stratumJobMetaPart.SetCurTimeTs(curTimeTs)
-	stratumJobMetaPart.SetMinTimeTs(minTimeTs)
-	stratumJobPart.SetMeta(stratumJobMetaPart)
+	stratumJobMetaPart.Height = height
+	stratumJobMetaPart.CurTimeTs = curTimeTs
+	stratumJobMetaPart.MinTimeTs = minTimeTs
+	stratumJobPart.Meta = stratumJobMetaPart
 
 	return stratumJobPart, transactions, nil
 }
@@ -158,37 +158,37 @@ func (c *BTCCoin) GetLatestStratumJob(registerId string, ctx *service.Register) 
 func (c *BTCCoin) MakeBlock(header *service.BlockHeaderPart, base *service.BlockCoinBasePart, transactions []*service.BlockTransactionPart) (*service.Block, error) {
 	var block wire.MsgBlock
 
-	blockVersion, err := decodeVersion(header.GetVersion())
+	blockVersion, err := decodeVersion(header.Version)
 	if err != nil {
 		return nil, err
 	}
 
-	timestamp, err := decodeTimestamp(header.GetNTime())
+	timestamp, err := decodeTimestamp(header.NTime)
 	if err != nil {
 		return nil, err
 	}
 
-	prevHash, err := decodeHash(header.GetPrevHash())
+	prevHash, err := decodeHash(header.PrevHash)
 	if err != nil {
 		return nil, err
 	}
 
-	nonce, err := decodeNonce(header.GetNonce())
+	nonce, err := decodeNonce(header.Nonce)
 	if err != nil {
 		return nil, err
 	}
 
-	bits, err := decodeBits(header.GetNBits())
+	bits, err := decodeBits(header.NBits)
 	if err != nil {
 		return nil, err
 	}
 
 	coinBaseBuf := new(bytes.Buffer)
 
-	coinBaseBuf.Write([]byte(base.GetCoinBase1()))
-	coinBaseBuf.Write([]byte(base.GetExtraNonce1()))
-	coinBaseBuf.Write([]byte(base.GetExtraNonce2()))
-	coinBaseBuf.Write([]byte(base.GetCoinBase2()))
+	coinBaseBuf.Write([]byte(base.CoinBase1))
+	coinBaseBuf.Write([]byte(base.ExtraNonce1))
+	coinBaseBuf.Write([]byte(base.ExtraNonce2))
+	coinBaseBuf.Write([]byte(base.CoinBase2))
 
 	coinBaseMsgTx := wire.NewMsgTx(wire.TxVersion)
 	tx, err := hex.DecodeString(coinBaseBuf.String())
@@ -231,8 +231,8 @@ func (c *BTCCoin) MakeBlock(header *service.BlockHeaderPart, base *service.Block
 	utilBlock := btcutil.NewBlock(&block)
 
 	b := service.NewBlock()
-	b.SetHash(blockHeaderHash.String())
-	b.SetData(utilBlock.Hash().String())
+	b.Hash = blockHeaderHash.String()
+	b.Data = utilBlock.Hash().String()
 	return b, nil
 }
 

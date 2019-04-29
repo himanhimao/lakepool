@@ -104,7 +104,7 @@ func (s *SphereServer) GetLatestStratumJob(ctx context.Context, in *pb.GetLatest
 	}
 
 	cacheService = s.Mgr.GetCacheService()
-	jobKey := service.GetJobKey(registerId, stratumJobPart.GetMeta().GetHeight(), stratumJobPart.GetMeta().GetCurTimeTs())
+	jobKey := service.GetJobKey(registerId, stratumJobPart.Meta.Height, stratumJobPart.Meta.CurTimeTs)
 	jobCacheExpireTs := s.Conf.JobCacheExpireTs
 	if cacheService == nil {
 		st := status.New(codes.Internal, "Abnormal - cache service")
@@ -117,7 +117,7 @@ func (s *SphereServer) GetLatestStratumJob(ctx context.Context, in *pb.GetLatest
 		return nil, st.Err()
 	}
 
-	return &pb.GetLatestStratumJobResponse{Job: loadPBStratumJob(stratumJobPart)}, nil
+	return &pb.GetLatestStratumJobResponse{Job: stratumJobPart.ToPBStratumJob()}, nil
 }
 
 func (s *SphereServer) SubmitShare(ctx context.Context, in *pb.SubmitShareRequest) (*pb.SubmitShareResponse, error) {
@@ -168,7 +168,7 @@ func (s *SphereServer) SubmitShare(ctx context.Context, in *pb.SubmitShareReques
 		return &pb.SubmitShareResponse{Result: &pb.SubmitShareResult{State: pb.StratumShareState_ERR_JOB_NOT_FOUND}}, nil
 	}
 
-	blockHeaderPart, coinBasePart := loadServiceParts(in.Share)
+	blockHeaderPart, coinBasePart := splitServiceParts(in.Share)
 	block, err := coinService.MakeBlock(blockHeaderPart, coinBasePart, transactions)
 	if err != nil {
 		st := status.New(codes.Internal, err.Error())
@@ -176,7 +176,7 @@ func (s *SphereServer) SubmitShare(ctx context.Context, in *pb.SubmitShareReques
 	}
 
 	targetDifficulty := new(big.Int).SetUint64(in.Difficulty)
-	isSolveHash, err := coinService.IsSolveHash(block.GetHash(), targetDifficulty)
+	isSolveHash, err := coinService.IsSolveHash(block.Hash, targetDifficulty)
 
 	if err != nil {
 		st := status.New(codes.Internal, fmt.Sprintf("Abnormal - is slove hash:%s", err.Error()))
@@ -189,7 +189,7 @@ func (s *SphereServer) SubmitShare(ctx context.Context, in *pb.SubmitShareReques
 
 	//duplicate Check
 	shareKey := service.GetShareKey(registerId, in.Share.Meta.Height)
-	isExistShare, err := cacheService.ExistShareHash(shareKey, block.GetHash())
+	isExistShare, err := cacheService.ExistShareHash(shareKey, block.Hash)
 	if err != nil {
 		st := status.New(codes.Internal, fmt.Sprintf("Abnormal - is exist share:%s", err.Error()))
 		return nil, st.Err()
@@ -199,13 +199,13 @@ func (s *SphereServer) SubmitShare(ctx context.Context, in *pb.SubmitShareReques
 		return &pb.SubmitShareResponse{Result: &pb.SubmitShareResult{State: pb.StratumShareState_ERR_DUPLICATE_SHARE}}, nil
 	}
 
-	netTargetDifficulty, err := coinService.GetTargetDifficulty(blockHeaderPart.GetNBits())
+	netTargetDifficulty, err := coinService.GetTargetDifficulty(blockHeaderPart.NBits)
 	if err != nil {
 		st := status.New(codes.Internal, fmt.Sprintf("Abnormal - get target difficulty:%s", err.Error()))
 		return nil, st.Err()
 	}
 
-	isSubmitHash, err := coinService.IsSolveHash(block.GetHash(), netTargetDifficulty)
+	isSubmitHash, err := coinService.IsSolveHash(block.Hash, netTargetDifficulty)
 	if err != nil {
 		st := status.New(codes.Internal, fmt.Sprintf("Abnormal - is submit hash:%s", err.Error()))
 		return nil, st.Err()
@@ -214,7 +214,7 @@ func (s *SphereServer) SubmitShare(ctx context.Context, in *pb.SubmitShareReques
 	var state pb.StratumShareState
 	var submitState bool
 	if isSubmitHash {
-		submitState, err = coinService.SubmitBlock(block.GetData())
+		submitState, err = coinService.SubmitBlock(block.Data)
 		if err != nil {
 			st := status.New(codes.Internal, fmt.Sprintf("Abnormal - submit share :%s", err.Error()))
 			return nil, st.Err()
@@ -232,7 +232,7 @@ func (s *SphereServer) SubmitShare(ctx context.Context, in *pb.SubmitShareReques
 		return nil, st.Err()
 	}
 
-	return &pb.SubmitShareResponse{Result: &pb.SubmitShareResult{State: state, Hash: block.GetHash(), ComputePower: float64(shareComputePower.Uint64())}}, nil
+	return &pb.SubmitShareResponse{Result: &pb.SubmitShareResult{State: state, Hash: block.Hash, ComputePower: float64(shareComputePower.Uint64())}}, nil
 }
 
 func (s *SphereServer) Subscribe(in *pb.GetLatestStratumJobRequest, stream pb.Sphere_SubscribeServer) error {
@@ -288,13 +288,13 @@ func (s *SphereServer) Subscribe(in *pb.GetLatestStratumJobRequest, stream pb.Sp
 			goto Out
 		case <-notifyTicker.C:
 			if stratumJobPart != nil {
-				jobKey := service.GetJobKey(registerId, stratumJobPart.GetMeta().GetHeight(), stratumJobPart.GetMeta().GetCurTimeTs())
+				jobKey := service.GetJobKey(registerId, stratumJobPart.Meta.Height, stratumJobPart.Meta.CurTimeTs)
 				err = cacheService.SetBlockTransactions(jobKey, int(jobCacheExpireTs), blockTransactions)
 				if err != nil {
 					st := status.New(codes.Internal, err.Error())
 					return st.Err()
 				}
-				stream.Send(&pb.GetLatestStratumJobResponse{Job: loadPBStratumJob(tmpJobPart)})
+				stream.Send(&pb.GetLatestStratumJobResponse{Job: tmpJobPart.ToPBStratumJob()})
 			}
 		case <-pullGBTTicker.C:
 			tmpJobPart, tmpBlockTransactionParts, err = coinService.GetLatestStratumJob(registerId, register)
@@ -302,14 +302,14 @@ func (s *SphereServer) Subscribe(in *pb.GetLatestStratumJobRequest, stream pb.Sp
 				break
 			}
 			if stratumJobPart != nil {
-				if stratumJobPart.GetMeta().GetHeight() != tmpJobPart.GetMeta().GetHeight() {
-					jobKey := service.GetJobKey(registerId, tmpJobPart.GetMeta().GetHeight(), tmpJobPart.GetMeta().GetCurTimeTs())
+				if stratumJobPart.Meta.Height != tmpJobPart.Meta.Height {
+					jobKey := service.GetJobKey(registerId, tmpJobPart.Meta.Height, tmpJobPart.Meta.CurTimeTs)
 					err = cacheService.SetBlockTransactions(jobKey, jobCacheExpireTs, tmpBlockTransactionParts)
 					if err != nil {
 						st := status.New(codes.Internal, err.Error())
 						return st.Err()
 					}
-					stream.Send(&pb.GetLatestStratumJobResponse{Job: loadPBStratumJob(tmpJobPart)})
+					stream.Send(&pb.GetLatestStratumJobResponse{Job: tmpJobPart.ToPBStratumJob()})
 					break
 				}
 			}
@@ -418,35 +418,19 @@ func (s *SphereServer) fetchRegisterContext(registerKey service.RegisterKey) (*s
 	return s.Mgr.GetCacheService().GetRegisterContext(registerKey)
 }
 
-func loadPBStratumJob(job *service.StratumJobPart) *pb.StratumJob {
-	pbStratumJob := new(pb.StratumJob)
-	pbStratumJob.NBits = job.GetNBits()
-	pbStratumJob.PrevHash = job.GetPrevHash()
-	pbStratumJob.MerkleBranch = job.GetMerkleBranch()
-	pbStratumJob.CoinBase1 = job.GetCoinBase1()
-	pbStratumJob.CoinBase2 = job.GetCoinBase2()
-	pbStratumJob.Version = job.GetVersion()
 
-	pbStratumJobMeta := new(pb.StratumJobMeta)
-	pbStratumJobMeta.CurTimeTs = job.GetMeta().GetCurTimeTs()
-	pbStratumJobMeta.Height = job.GetMeta().GetHeight()
-	pbStratumJobMeta.MinTimeTs = job.GetMeta().GetMinTimeTs()
-	pbStratumJob.Meta = pbStratumJobMeta
-	return pbStratumJob
-}
-
-func loadServiceParts(share *pb.StratumShare) (*service.BlockHeaderPart, *service.BlockCoinBasePart) {
+func splitServiceParts(share *pb.StratumShare) (*service.BlockHeaderPart, *service.BlockCoinBasePart) {
 	coinBasePart := service.NewBlockCoinBasePart()
-	coinBasePart.SetCoinBase1(share.CoinBase1)
-	coinBasePart.SetCoinBase2(share.CoinBase2)
-	coinBasePart.SetExtraNonce1(share.ExtraNonce1)
-	coinBasePart.SetExtraNonce2(share.ExtraNonce2)
+	coinBasePart.CoinBase1 = share.CoinBase1
+	coinBasePart.CoinBase2 = share.CoinBase2
+	coinBasePart.ExtraNonce1 = share.ExtraNonce1
+	coinBasePart.ExtraNonce2 = share.ExtraNonce2
 
 	blockHeaderPart := service.NewBlockHeaderPart()
-	blockHeaderPart.SetNTime(share.NTime)
-	blockHeaderPart.SetNBits(share.NBits)
-	blockHeaderPart.SetVersion(share.Version)
-	blockHeaderPart.SetNonce(share.Nonce)
-	blockHeaderPart.SetPrevHash(share.PrevHash)
+	blockHeaderPart.NTime = share.NTime
+	blockHeaderPart.NBits = share.NBits
+	blockHeaderPart.Version = share.Version
+	blockHeaderPart.Nonce = share.Nonce
+	blockHeaderPart.PrevHash = share.PrevHash
 	return blockHeaderPart, coinBasePart
 }
