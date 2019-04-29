@@ -16,28 +16,19 @@
 ### 模块
 #### stratum server
 ##### 简介
-> startum协议的标准实现，负责与矿机建立链接，处理消息的分发工作
-##### 特性
-##### 数据库依赖
-##### 配置说明
+> stratum协议的标准实现，负责与矿机建立链接，处理消息的分发工作
 
 #### stats server 
 ##### 简介
-##### 特性
-##### 数据库依赖
-##### 配置说明
+> 聚合器，负责统计单个stratum server的出块记录和share记录，降日志的粒度聚合到分钟
  
 #### log server
 ##### 简介
-##### 特性
-##### 数据库依赖
-##### 配置说明
+> 公共的日志服务, 负责记录整个集群的日志服务(出块日志，share日志)
 
 #### sphere server
 ##### 简介
-##### 特性
-##### 数据库依赖
-##### 配置说明
+> 公共的核心服务，负责验证各币种的share, 向各个币种推送job.
 
 ### DOCKER BUILD
 > log-server 
@@ -61,9 +52,6 @@ cd lakepool/backend/stratum_server
 docker build -t lakepool/backend/stratum_server -f build/Dockerfile .
 ```
 ### K8S DEPLOYMENT
-   
-
-
 
 # 中台
 
