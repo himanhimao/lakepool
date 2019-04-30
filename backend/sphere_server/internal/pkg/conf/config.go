@@ -33,14 +33,14 @@ type RedisPoolConfig struct {
 	IdleTimeout int
 }
 
-type SubscribeConfig struct {
+type CoinConfig struct {
 	PullGBTInterval  time.Duration
 	NotifyInterval   time.Duration
 	JobCacheExpireTs time.Duration
 }
 
 type SphereConfig struct {
-	Subscribe map[string]SubscribeConfig
+	Configs map[string]CoinConfig
 }
 
 type ServerConfig struct {
