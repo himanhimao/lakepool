@@ -79,7 +79,6 @@ func NewBlock() *Block {
 	return &Block{}
 }
 
-
 func (job *StratumJobPart)ToPBStratumJob() *pb.StratumJob {
 	pbStratumJob := new(pb.StratumJob)
 	pbStratumJob.NBits = job.NBits

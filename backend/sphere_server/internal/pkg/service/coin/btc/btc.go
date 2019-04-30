@@ -62,19 +62,19 @@ func (c *BTCCoin) GetLatestStratumJob(registerId string, ctx *service.Register) 
 		return nil, nil, err
 	}
 
-	payoutAddressStr := ctx.GetPayoutAddress()
+	payoutAddressStr := ctx.PayoutAddress
 	version := gbtBlockTemplate.Version
 	gbtPrevBlockHash := gbtBlockTemplate.PreviousBlockHash
 	coinBaseValue := gbtBlockTemplate.CoinBaseValue
 	nBits := gbtBlockTemplate.Bits
 	witnessCommitment := gbtBlockTemplate.DefaultWitnessCommitment
 	height := gbtBlockTemplate.Height
-	coinBaseSignatureScript := generateCoinBase(height, registerId, ctx.GetPoolTag())
+	coinBaseSignatureScript := generateCoinBase(height, registerId, ctx.PoolTag)
 	blockTemplateTransactions := gbtBlockTemplate.Transactions
 	minTimeTs := gbtBlockTemplate.MinTime
 	curTimeTs := gbtBlockTemplate.CurTime
 	prevBlockHash := littleEndian(reverseString(gbtPrevBlockHash))
-	placeHolderSize := ctx.GetExtraNonce1Length() + ctx.GetExtraNonce2Length()
+	placeHolderSize := ctx.ExtraNonce1Length + ctx.ExtraNonce2Length
 	placeHolders := genPlaceHolders(placeHolderSize)
 
 	payoutAddress, err := btcutil.DecodeAddress(payoutAddressStr, &chaincfg.MainNetParams)

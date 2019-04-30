@@ -33,14 +33,14 @@ type RedisPoolConfig struct {
 	IdleTimeout int
 }
 
-type SphereSubscribeConfig struct {
+type SubscribeConfig struct {
 	PullGBTInterval  time.Duration
 	NotifyInterval   time.Duration
 	JobCacheExpireTs time.Duration
 }
 
 type SphereConfig struct {
-	SphereSubscribeConfig
+	Subscribe map[string]SubscribeConfig
 }
 
 type ServerConfig struct {
@@ -49,7 +49,6 @@ type ServerConfig struct {
 	Port int
 	Mode string
 }
-
 
 func (c *ServerConfig) IsValidMode() bool {
 	if c.Mode == ModeProd {

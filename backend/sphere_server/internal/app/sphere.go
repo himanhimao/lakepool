@@ -55,10 +55,14 @@ func (s *SphereServer) Register(ctx context.Context, in *pb.RegisterRequest) (*p
 	}
 
 	registerId := s.calculateRegisterId(in.SysInfo)
-	registerKey := service.GetRegisterKey(registerId)
-	register := service.NewRegister().SetPayoutAddress(in.Config.PayoutAddress).SetPoolTag(in.Config.PoolTag).
-		SetCoinType(in.Config.CoinType).SetUsedTestNet(in.Config.UsedTestNet).SetExtraNonce1Length(int(in.Config.ExtraNonce1Length)).
-		SetExtraNonce2Length(int(in.Config.ExtraNonce2Length))
+	registerKey := service.GenRegisterKey(registerId)
+	register := service.NewRegister()
+	register.PayoutAddress = in.Config.PayoutAddress
+	register.PoolTag = in.Config.PoolTag
+	register.CoinType = in.Config.CoinType
+	register.UsedTestNet = in.Config.UsedTestNet
+	register.ExtraNonce1Length = int(in.Config.ExtraNonce1Length)
+	register.ExtraNonce2Length = int(in.Config.ExtraNonce2Length)
 
 	if err := s.storeRegisterContext(registerKey, register); err != nil {
 		st := status.New(codes.Internal, fmt.Sprintf("Store context error: %s", err.Error()))
@@ -78,7 +82,7 @@ func (s *SphereServer) GetLatestStratumJob(ctx context.Context, in *pb.GetLatest
 	var coinService service.CoinService
 	var cacheService service.CacheService
 
-	registerKey := service.GetRegisterKey(registerId)
+	registerKey := service.GenRegisterKey(registerId)
 	register, err = s.fetchRegisterContext(registerKey)
 
 	if err != nil {
@@ -91,7 +95,7 @@ func (s *SphereServer) GetLatestStratumJob(ctx context.Context, in *pb.GetLatest
 		return nil, st.Err()
 	}
 
-	coinService = s.Mgr.GetCoinService(register.GetCoinType());
+	coinService = s.Mgr.GetCoinService(register.CoinType)
 	if coinService == nil {
 		st := status.New(codes.Internal, "Abnormal - coin service")
 		return nil, st.Err()
@@ -104,8 +108,8 @@ func (s *SphereServer) GetLatestStratumJob(ctx context.Context, in *pb.GetLatest
 	}
 
 	cacheService = s.Mgr.GetCacheService()
-	jobKey := service.GetJobKey(registerId, stratumJobPart.Meta.Height, stratumJobPart.Meta.CurTimeTs)
-	jobCacheExpireTs := s.Conf.JobCacheExpireTs
+	jobKey := service.GenJobKey(registerId, stratumJobPart.Meta.Height, stratumJobPart.Meta.CurTimeTs)
+	jobCacheExpireTs := s.Conf.Subscribe[register.CoinType].JobCacheExpireTs
 	if cacheService == nil {
 		st := status.New(codes.Internal, "Abnormal - cache service")
 		return nil, st.Err()
@@ -131,7 +135,7 @@ func (s *SphereServer) SubmitShare(ctx context.Context, in *pb.SubmitShareReques
 	var coinService service.CoinService
 	var cacheService service.CacheService
 
-	registerKey := service.GetRegisterKey(registerId)
+	registerKey := service.GenRegisterKey(registerId)
 	register, err = s.fetchRegisterContext(registerKey)
 
 	if err != nil {
@@ -144,9 +148,9 @@ func (s *SphereServer) SubmitShare(ctx context.Context, in *pb.SubmitShareReques
 		return nil, st.Err()
 	}
 
-	coinService = s.Mgr.GetCoinService(register.GetCoinType());
+	coinService = s.Mgr.GetCoinService(register.CoinType)
 	stratumShare := in.Share
-	jobKey := service.GetJobKey(registerId, stratumShare.Meta.Height, stratumShare.Meta.CurTimeTs)
+	jobKey := service.GenJobKey(registerId, stratumShare.Meta.Height, stratumShare.Meta.CurTimeTs)
 	if coinService == nil {
 		st := status.New(codes.Internal, "Abnormal - coin service")
 		return nil, st.Err()
@@ -188,7 +192,7 @@ func (s *SphereServer) SubmitShare(ctx context.Context, in *pb.SubmitShareReques
 	}
 
 	//duplicate Check
-	shareKey := service.GetShareKey(registerId, in.Share.Meta.Height)
+	shareKey := service.GenShareKey(registerId, in.Share.Meta.Height)
 	isExistShare, err := cacheService.ExistShareHash(shareKey, block.Hash)
 	if err != nil {
 		st := status.New(codes.Internal, fmt.Sprintf("Abnormal - is exist share:%s", err.Error()))
@@ -246,7 +250,7 @@ func (s *SphereServer) Subscribe(in *pb.GetLatestStratumJobRequest, stream pb.Sp
 	var coinService service.CoinService
 	var cacheService service.CacheService
 
-	registerKey := service.GetRegisterKey(registerId)
+	registerKey := service.GenRegisterKey(registerId)
 	register, err = s.fetchRegisterContext(registerKey)
 
 	if err != nil {
@@ -259,7 +263,7 @@ func (s *SphereServer) Subscribe(in *pb.GetLatestStratumJobRequest, stream pb.Sp
 		return st.Err()
 	}
 
-	coinService = s.Mgr.GetCoinService(register.GetCoinType());
+	coinService = s.Mgr.GetCoinService(register.CoinType)
 	if coinService == nil {
 		st := status.New(codes.Internal, "Abnormal - coin service")
 		return st.Err()
@@ -271,8 +275,8 @@ func (s *SphereServer) Subscribe(in *pb.GetLatestStratumJobRequest, stream pb.Sp
 		return st.Err()
 	}
 
-	pullGBTInterval := s.Conf.PullGBTInterval
-	notifyInterval := s.Conf.NotifyInterval
+	pullGBTInterval := s.Conf.Subscribe[register.CoinType].PullGBTInterval
+	notifyInterval := s.Conf.Subscribe[register.CoinType].NotifyInterval
 	notifyTicker := time.NewTicker(time.Second * notifyInterval)
 	pullGBTTicker := time.NewTicker(time.Millisecond * pullGBTInterval)
 
@@ -280,7 +284,7 @@ func (s *SphereServer) Subscribe(in *pb.GetLatestStratumJobRequest, stream pb.Sp
 	var blockTransactions []*service.BlockTransactionPart
 	var tmpJobPart *service.StratumJobPart
 	var tmpBlockTransactionParts []*service.BlockTransactionPart
-	jobCacheExpireTs := int(s.Conf.JobCacheExpireTs)
+	jobCacheExpireTs := int(s.Conf.Subscribe[register.CoinType].JobCacheExpireTs)
 
 	for {
 		select {
@@ -288,7 +292,7 @@ func (s *SphereServer) Subscribe(in *pb.GetLatestStratumJobRequest, stream pb.Sp
 			goto Out
 		case <-notifyTicker.C:
 			if stratumJobPart != nil {
-				jobKey := service.GetJobKey(registerId, stratumJobPart.Meta.Height, stratumJobPart.Meta.CurTimeTs)
+				jobKey := service.GenJobKey(registerId, stratumJobPart.Meta.Height, stratumJobPart.Meta.CurTimeTs)
 				err = cacheService.SetBlockTransactions(jobKey, int(jobCacheExpireTs), blockTransactions)
 				if err != nil {
 					st := status.New(codes.Internal, err.Error())
@@ -303,7 +307,7 @@ func (s *SphereServer) Subscribe(in *pb.GetLatestStratumJobRequest, stream pb.Sp
 			}
 			if stratumJobPart != nil {
 				if stratumJobPart.Meta.Height != tmpJobPart.Meta.Height {
-					jobKey := service.GetJobKey(registerId, tmpJobPart.Meta.Height, tmpJobPart.Meta.CurTimeTs)
+					jobKey := service.GenJobKey(registerId, tmpJobPart.Meta.Height, tmpJobPart.Meta.CurTimeTs)
 					err = cacheService.SetBlockTransactions(jobKey, jobCacheExpireTs, tmpBlockTransactionParts)
 					if err != nil {
 						st := status.New(codes.Internal, err.Error())
@@ -331,7 +335,7 @@ func (s *SphereServer) ClearShareHistory(ctx context.Context, in *pb.ClearShareH
 	var register *service.Register
 	var cacheService service.CacheService
 
-	registerKey := service.GetRegisterKey(registerId)
+	registerKey := service.GenRegisterKey(registerId)
 	register, err = s.fetchRegisterContext(registerKey)
 
 	if err != nil {
@@ -350,7 +354,7 @@ func (s *SphereServer) ClearShareHistory(ctx context.Context, in *pb.ClearShareH
 		return nil, st.Err()
 	}
 
-	err = cacheService.ClearShareHistory(service.GetShareKey(registerId, in.Height))
+	err = cacheService.ClearShareHistory(service.GenShareKey(registerId, in.Height))
 	if err != nil {
 		st := status.New(codes.Internal, err.Error())
 		return nil, st.Err()
@@ -369,7 +373,7 @@ func (s *SphereServer) UnRegister(ctx context.Context, in *pb.UnRegisterRequest,
 	var register *service.Register
 	var cacheService service.CacheService
 
-	registerKey := service.GetRegisterKey(registerId)
+	registerKey := service.GenRegisterKey(registerId)
 	register, err = s.fetchRegisterContext(registerKey)
 
 	if err != nil {
@@ -388,7 +392,7 @@ func (s *SphereServer) UnRegister(ctx context.Context, in *pb.UnRegisterRequest,
 		return nil, st.Err()
 	}
 
-	err = cacheService.DelRegisterContext(service.GetRegisterKey(registerId))
+	err = cacheService.DelRegisterContext(service.GenRegisterKey(registerId))
 	if err != nil {
 		st := status.New(codes.Internal, err.Error())
 		return nil, st.Err()

@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	ErrorNoInitialization = errors.New("Not initialization")
+	ErrorNoInitialization = errors.New("not initialization")
 )
 
 type RedisCache struct {
@@ -33,12 +33,12 @@ func (c *RedisCache) SetRegisterContext(key service.RegisterKey, r *service.Regi
 		return ErrorNoInitialization
 	}
 
-	extraNonce1Length := r.GetExtraNonce1Length()
-	extraNonce2Length := r.GetExtraNonce2Length()
+	extraNonce1Length := r.ExtraNonce1Length
+	extraNonce2Length := r.ExtraNonce2Length
 
 	if _, err := client.Do("hmset", key, service.KeyRegPayoutAddress,
-		r.GetPayoutAddress(), service.KeyRegPoolTag, r.GetPoolTag(), service.KeyRegCoinType,
-		r.GetCoinType(), service.KeyRegUsedTestNet, strconv.FormatBool(r.IsUsedTestNet()),
+		r.PayoutAddress, service.KeyRegPoolTag, r.PoolTag, service.KeyRegCoinType,
+		r.CoinType, service.KeyRegUsedTestNet, strconv.FormatBool(r.UsedTestNet),
 		service.KeyRegExtraNonce1Length, strconv.Itoa(extraNonce1Length),
 		service.KeyRegExtraNonce2Length, strconv.Itoa(extraNonce2Length),
 	); err != nil {
@@ -62,30 +62,30 @@ func (c *RedisCache) GetRegisterContext(key service.RegisterKey) (*service.Regis
 
 	r := service.NewRegister()
 	if values[0] != nil {
-		r.SetPayoutAddress(string(values[0].([]byte)))
+		r.PayoutAddress = string(values[0].([]byte))
 	}
 
 	if values[1] != nil {
-		r.SetPoolTag(string(values[1].([]byte)))
+		r.PoolTag  = string(values[1].([]byte))
 	}
 
 	if values[2] != nil {
-		r.SetCoinType(string(values[2].([]byte)))
+		r.CoinType = string(values[2].([]byte))
 	}
 
 	if values[3] != nil {
 		res, _ := strconv.ParseBool(string(values[3].([]byte)))
-		r.SetUsedTestNet(res)
+		r.UsedTestNet = res
 	}
 
 	if values[4] != nil {
 		res, _ := strconv.Atoi(string(values[4].([]byte)))
-		r.SetExtraNonce1Length(res)
+		r.ExtraNonce1Length = res
 	}
 
 	if values[5] != nil {
 		res, _ := strconv.Atoi(string(values[5].([]byte)))
-		r.SetExtraNonce2Length(res)
+		r.ExtraNonce2Length = res
 	}
 	return r, nil
 }

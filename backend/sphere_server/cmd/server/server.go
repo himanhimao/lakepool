@@ -40,7 +40,9 @@ func main() {
 	var btcConfig conf.BTCClientConfig
 	var redisConfig conf.RedisConfig
 	var btcRpcClient *btc.RpcClient
+	var btcSubscribeConfig conf.SubscribeConfig
 	mgr := service.NewManager()
+
 
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
@@ -153,22 +155,22 @@ func main() {
 			Name:        "subscribe_pull_gbt_interval, spgi",
 			Usage:       "subscribe pull gbt interval(ms)",
 			Value:       500,
-			EnvVar:      "SPHERE_SUBSCRIBE_PULL_GET_GBT_INTERVAL",
-			Destination: &sphereConfig.PullGBTInterval,
+			EnvVar:      "SPHERE_BTC_SUBSCRIBE_PULL_GET_GBT_INTERVAL",
+			Destination: &btcSubscribeConfig.PullGBTInterval,
 		},
 		cli.DurationFlag{
 			Name:        "subscribe_notify_interval, sni",
 			Usage:       "subscribe notify interval(s)",
 			Value:       10,
-			EnvVar:      "SPHERE_SUBSCRIBE_NOTIFY_INTERVAL",
-			Destination: &sphereConfig.NotifyInterval,
+			EnvVar:      "SPHERE_BTC_SUBSCRIBE_NOTIFY_INTERVAL",
+			Destination: &btcSubscribeConfig.NotifyInterval,
 		},
 		cli.DurationFlag{
 			Name:        "job_cache_expire_ts",
 			Usage:       "job cache expire ts(s)",
 			Value:       7200,
-			EnvVar:      "SPHERE_JOB_CACHE_EXPIRE_TS",
-			Destination: &sphereConfig.JobCacheExpireTs,
+			EnvVar:      "SPHERE_BTC_JOB_CACHE_EXPIRE_TS",
+			Destination: &btcSubscribeConfig.JobCacheExpireTs,
 		},
 	}
 
@@ -207,6 +209,8 @@ func main() {
 
 		btcCoin := btc.NewBTCCoin().SetRPCClient(btcRpcClient)
 		mgr.SetCoinService(service.CoinTypeBTC, btcCoin)
+
+		sphereConfig.Subscribe[service.CoinTypeBTC] = btcSubscribeConfig
 
 		return nil
 	}
