@@ -36,13 +36,12 @@ func main() {
 	app.Usage = "lake pool sphere server"
 
 	var serverConfig conf.ServerConfig
-	var sphereConfig conf.SphereConfig
 	var btcConfig conf.BTCClientConfig
 	var redisConfig conf.RedisConfig
 	var btcRpcClient *btc.RpcClient
 	var btcCoinConfig conf.CoinConfig
 	mgr := service.NewManager()
-
+	sphereConfig := conf.NewSphereConfig()
 
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
@@ -217,9 +216,7 @@ func main() {
 
 		btcCoin := btc.NewBTCCoin().SetRPCClient(btcRpcClient)
 		mgr.SetCoinService(service.CoinTypeBTC, btcCoin)
-
 		sphereConfig.Configs[service.CoinTypeBTC] = btcCoinConfig
-
 		return nil
 	}
 
@@ -245,7 +242,7 @@ func main() {
 				}
 
 				s := grpc.NewServer(serverOptions...)
-				pb.RegisterSphereServer(s, &impl.SphereServer{Conf: &sphereConfig, Mgr: mgr})
+				pb.RegisterSphereServer(s, &impl.SphereServer{Conf: sphereConfig, Mgr: mgr})
 				reflection.Register(s)
 
 				signalChannel := make(chan os.Signal, 1)

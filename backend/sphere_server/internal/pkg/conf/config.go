@@ -62,6 +62,12 @@ func (c *ServerConfig) IsValidMode() bool {
 	return false
 }
 
+func NewSphereConfig() *SphereConfig {
+	configs := make(map[string]CoinConfig, 0)
+	return &SphereConfig{Configs:configs}
+}
+
+
 func (c *ServerConfig) FormatHostPort() string {
 	return net.JoinHostPort(c.Host, strconv.Itoa(c.Port))
 }
