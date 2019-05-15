@@ -120,6 +120,13 @@ func main() {
 			EnvVar:      "SPHERE_REDIS_PORT",
 			Destination: &redisConfig.Port,
 		},
+		cli.StringFlag{
+			Name:        "redis_password, rpw",
+			Usage:       "redis password",
+			Value:        "",
+			EnvVar:      "SPHERE_REDIS_PASSWORD",
+			Destination:  &redisConfig.Password,
+		},
 		cli.IntFlag{
 			Name:        "redis_db_num, rdn",
 			Usage:       "redis db num",
@@ -196,7 +203,8 @@ func main() {
 			IdleTimeout: time.Duration(redisConfig.IdleTimeout) * time.Second,
 			Wait:        false,
 			Dial: func() (redis.Conn, error) {
-				redisConn, err := redis.Dial("tcp", redisConfig.FormatAddress(), redis.DialDatabase(redisConfig.DBNum));
+				redisConn, err := redis.Dial("tcp", redisConfig.FormatAddress(),
+					redis.DialDatabase(redisConfig.DBNum), redis.DialPassword(redisConfig.Password))
 				if err != nil {
 					return nil, err
 				}

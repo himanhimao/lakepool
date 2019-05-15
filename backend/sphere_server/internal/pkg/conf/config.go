@@ -23,6 +23,7 @@ type BTCClientConfig struct {
 type RedisConfig struct {
 	Host  string
 	Port  int
+	Password string
 	DBNum int
 	RedisPoolConfig
 }
