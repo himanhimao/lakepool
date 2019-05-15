@@ -1,0 +1,9 @@
+apiVersion: v1
+data:
+  job_cache_notify_interval: 7200s
+  pull_get_gbt_interval: 500ms
+  subscribe_notify_interval: 10s
+kind: ConfigMap
+metadata:
+  name: sphere-btc-configmap
+  namespace: sphere

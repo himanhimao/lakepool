@@ -1,0 +1,116 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: lakepool-backend-sphere-server
+  namespace: sphere
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        run: lakepool-backend-sphere-server
+    spec:
+      containers:
+        - args:
+          - sphere-server
+          - run
+          name:  lakepool-backend-sphere-server
+          image:  asia.gcr.io/lakepool/backend_sphere_server:latest
+          imagePullPolicy: Always
+          env:
+          - name: SPHERE_SERVER_PORT
+            valueFrom:
+              configMapKeyRef:
+                name: sphere-configmap
+                key: port
+                optional: true
+          - name: SPHERE_MODE
+            valueFrom:
+              configMapKeyRef:
+                name: sphere-configmap
+                key: mode
+                optional: true
+          - name: SPHERE_BTC_HOST
+            valueFrom:
+              secretKeyRef:
+                name: sphere-btc-secret
+                key: host
+          - name: SPHERE_BTC_PORT
+            valueFrom:
+              secretKeyRef:
+                name: sphere-btc-secret
+                key: port
+          - name: SPHERE_BTC_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: sphere-btc-secret
+                key: username
+          - name: SPHERE_BTC_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: sphere-btc-secret
+                key: password
+          - name: SPHERE_BTC_USESSL
+            valueFrom:
+              secretKeyRef:
+                name: sphere-btc-secret
+                key: usessl
+          - name: SPHERE_REDIS_HOST
+            valueFrom:
+              secretKeyRef:
+                name: sphere-redis-secret
+                key: host
+          - name: SPHERE_REDIS_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: sphere-redis-secret
+                key: password
+          - name: SPHERE_REDIS_PORT
+            valueFrom:
+              secretKeyRef:
+                name: sphere-redis-secret
+                key: port
+          - name: SPHERE_REDIS_DB_NUM
+            valueFrom:
+              secretKeyRef:
+                name: sphere-redis-secret
+                key: db_num
+          - name: SPHERE_REDIS_POOL_MAX_IDLE
+            valueFrom:
+              secretKeyRef:
+                name: sphere-redis-secret
+                key: pool_max_idle
+                optional: true
+          - name: SPHERE_REDIS_POOL_MAX_ACTIVE
+            valueFrom:
+              secretKeyRef:
+                name: sphere-redis-secret
+                key: pool_max_active
+                optional: true
+          - name: SPHERE_REDIS_POOL_IDLE_TIMEOUT
+            valueFrom:
+              secretKeyRef:
+                name: sphere-redis-secret
+                key: pool_idle_timeout
+                optional: true
+          - name: SPHERE_BTC_SUBSCRIBE_PULL_GET_GBT_INTERVAL
+            valueFrom:
+              configMapKeyRef:
+                name: sphere-btc-configmap
+                key: pull_get_gbt_interval
+                optional: true
+          - name: SPHERE_BTC_SUBSCRIBE_NOTIFY_INTERVAL
+            valueFrom:
+              configMapKeyRef:
+                name: sphere-btc-configmap
+                key: subscribe_notify_interval
+                optional: true
+          - name: SPHERE_BTC_JOB_CACHE_EXPIRE_TS
+            valueFrom:
+              configMapKeyRef:
+                name: sphere-btc-btcconfigmap
+                key: job_cache_notify_interval
+                optional: true
