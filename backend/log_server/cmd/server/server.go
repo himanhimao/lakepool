@@ -58,14 +58,14 @@ func main() {
 			Name:        "port, p",
 			Value:       8082,
 			Usage:       "server port",
-			EnvVar:      "LOG_PORT",
+			EnvVar:      "LOG_SERVER_PORT",
 			Destination: &serverConfig.Port,
 		},
 		cli.StringFlag{
 			Name:        "server_mode, sm",
 			Value:       conf.ModeDev,
 			Usage:       "server mode",
-			EnvVar:      "SERVER_MODE",
+			EnvVar:      "LOG_MODE",
 			Destination: &serverConfig.Mode,
 		},
 		cli.StringFlag{
@@ -77,14 +77,14 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:        "db_username, du",
-			Value:       "db username",
+			Value:       "",
 			Usage:       "influx db http username",
 			EnvVar:      "LOG_DB_USERNAME",
 			Destination: &dbConfig.Username,
 		},
 		cli.StringFlag{
 			Name:        "db_password, dp",
-			Value:       "db password",
+			Value:       "",
 			Usage:       "influx db http password",
 			EnvVar:      "LOG_DB_PASSWORD",
 			Destination: &dbConfig.Password,
@@ -97,10 +97,10 @@ func main() {
 			Destination: &blockBPConfig.Database,
 		},
 		cli.StringFlag{
-			Name:        "block_database_precision, bdp",
+			Name:        "block_precision, bdp",
 			Value:       "ns",
 			Usage:       "influx db storage block database precision",
-			EnvVar:      "LOG_BATCH_POINTS_PRECISION",
+			EnvVar:      "LOG_BLOCK_PRECISION",
 			Destination: &blockBPConfig.Precision,
 			Hidden:      true,
 		},
@@ -108,19 +108,19 @@ func main() {
 			Name:        "share_database, sd",
 			Value:       "mining_share",
 			Usage:       "influx db storage share database name",
-			EnvVar:      "LOG_BlOCK_DATABASE",
+			EnvVar:      "LOG_SHARE_DATABASE",
 			Destination: &shareBPConfig.Database,
 		},
 		cli.StringFlag{
-			Name:        "share_database_precision, sdp",
+			Name:        "share_precision, sdp",
 			Value:       "m",
 			Usage:       "influx db storage block database precision",
-			EnvVar:      "LOG_BATCH_POINTS_PRECISION",
+			EnvVar:      "LOG_SHARE_PRECISION",
 			Destination: &shareBPConfig.Precision,
 			Hidden:      true,
 		},
 		cli.StringFlag{
-			Name:        "measurement_share_prefix, ms",
+			Name:        "measurement_share_prefix, msp",
 			Value:       "log_share",
 			Usage:       "measurement share",
 			EnvVar:      "LOG_MEASUREMENT_SHARE_PREFIX",
@@ -130,7 +130,7 @@ func main() {
 			Name:        "measurement_block_prefix, mbp",
 			Value:       "log_block",
 			Usage:       "measurement block",
-			EnvVar:      "measurement_block",
+			EnvVar:      "LOG_MEASUREMENT_BLOCK_PREFIX",
 			Destination: &logConfig.MeasurementBlockPrefix,
 		},
 	}
@@ -162,7 +162,6 @@ func main() {
 			Category: "core",
 			Before:   bootstrap,
 			Action: func(c *cli.Context) {
-				//run delayer loop
 				port := fmt.Sprintf(":%d", serverConfig.Port)
 				lis, err := net.Listen("tcp", port)
 				log.Infoln("log server start, port:", serverConfig.Port)
@@ -180,7 +179,7 @@ func main() {
 				pb.RegisterLogServer(s, logServer)
 				reflection.Register(s)
 
-				//信号捕捉
+				//Signal capture
 				signalChannel := make(chan os.Signal, 1)
 				signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM, syscall.SIGKILL, syscall.SIGHUP, syscall.SIGQUIT)
 
