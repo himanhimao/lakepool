@@ -180,7 +180,7 @@ func (s *StoreWorker) loopQueue(queue *lane.Deque, number int) {
 			} else {
 				runtime.Gosched()
 			}
-			time.Sleep(time.Second * s.config.StoreInterval)
+			time.Sleep(s.config.StoreInterval)
 		}
 	}
 }

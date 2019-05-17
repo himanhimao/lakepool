@@ -1,0 +1,114 @@
+apiVersion: extensions/v1beta1
+kind: StatefulSet
+metadata:
+  name: lakepool-backend-stratum-server-compose
+  namespace: stratum
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        run: lakepool-backend-stratum-server-compose
+    spec:
+      containers:
+        - args:
+          - stats-server
+          - run
+          name: lakepool-backend-stratum-stats-server
+          image: asia.gcr.io/lakepool/backend_stats_server:latest
+          imagePullPolicy: Always
+          env:
+          - name: STATS_SERVER_HOST
+            valueFrom:
+              configMapKeyRef:
+                name: stats-server1-configmap
+                key: host
+                optional: false
+          - name: STATS_SERVER_PORT
+            valueFrom:
+              configMapKeyRef:
+                name: stats-server1-configmap
+                key: port
+                optional: false
+          - name: STATS_SERVER_MODE
+            valueFrom:
+              configMapKeyRef:
+                name: stats-server1-configmap
+                key: mode
+                optional: true
+          - name: STATS_DB_ADDR
+            valueFrom:
+              secretKeyRef:
+                name: stats-db1-secret
+                key: addr
+                optional: true
+          - name: STATS_DB_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: stats-db1-secret
+                key: username
+                optional: false
+          - name: STATS_DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: stats-db1-secret
+                key: password
+                optional: false
+          - name: STATS_DB_DATABASE
+            valueFrom:
+              secretKeyRef:
+                name: stats-db1-secret
+                key: database
+                optional: false
+          - name: STATS_COIN_TYPE
+            valueFrom:
+              configMapKeyRef:
+                name: stats-server1-configmap
+                key: coin_type
+                optional: false
+          - name: STATS_MEASUREMENT_SHARE_PREFIX
+            valueFrom:
+              configMapKeyRef:
+                name: stats-server1-configmap
+                key: measurement_share_prefix
+                optional: true
+          - name: STATS_STORE_INTERVAL
+            valueFrom:
+              configMapKeyRef:
+                name: stats-server1-configmap
+                key: store_cycle
+                optional: true
+          - name: STATS_STORE_QUEUES_NUM
+            valueFrom:
+              configMapKeyRef:
+                name: stats-server1-configmap
+                key: store_queues_num
+                optional: true
+        - args:
+          - stats-pusher
+          - run
+          name: lakepool-backend-stratum-stats-pusher
+          image: asia.gcr.io/lakepool/backend_stats_pusher:latest
+          imagePullPolicy: Always
+          env:
+          - name: STATS_PUSHER_CLIENT_MODE
+            valueFrom:
+              configMapKeyRef:
+                name: stats-pusher1-configmap
+                key: mode
+                optional: true
+          - name: STATS_PUSHER_COIN_TYPE
+            valueFrom:
+              configMapKeyRef:
+                name: stats-pusher1-configmap
+                key: coin_type
+                optional: false
+          -
+
+
+
+
+

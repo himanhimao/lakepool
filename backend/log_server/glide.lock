@@ -1,5 +1,5 @@
-hash: e26ed08a4d8dfb55263911a18e50cdad1d534212ae3317be153ece94b1de4eab
-updated: 2019-04-24T15:34:57.930459+08:00
+hash: 1c0ac687a4310f4d2dcc725c91bf7e78cd0f377300695ecc6e938b38cddc51d9
+updated: 2019-05-17T15:30:19.536566+08:00
 imports:
 - name: github.com/golang/protobuf
   version: b5d812f8a3706043e23a9cd5babf2e5423744d30
@@ -11,7 +11,7 @@ imports:
   - ptypes/duration
   - ptypes/timestamp
 - name: github.com/himanhimao/lakepool_proto
-  version: a94ee9e0eb05449af8b206084c894cf56909fc21
+  version: f06e91ad00b670b275b0a739bf0d10bf8d447a2d
   subpackages:
   - backend/proto_log
 - name: github.com/influxdata/influxdb1-client

@@ -1,30 +1,29 @@
-## influxdb 
-CREATE DATABASE "mining_stats"
+## stats_server
+> 聚合器，和单个stratum_server搭配使用，负责统计单个stratum_server的收益情况
 
-### RETENTION POLICY
-CREATE RETENTION POLICY "three_days" on "mining_stats" DURATION 72h  REPLICATION 1 DEFAULT
-CREATE RETENTION POLICY "two_weeks" on "mining_stats" DURATION 336h  REPLICATION 1
+### 主要模块
 
+#### server
+> 接口服务器， stratum_server 会将日志数据通过接口上传至stats_server, 并持久化存储
 
-### CONTINUOUS QUERIES
-CREATE CONTINUOUS QUERY "cq_stats_btc_share_1min" ON "mining_stats" BEGIN SELECT mean("compute_power") as compute_power INTO "mining_stats"."two_weeks"."stats_share_btc_1min" FROM "mining_stats"."three_days"."stats_share_btc" GROUP BY time(1m), * fill(none) END
-
-
-
-SELECT mean("compute") as compute FROM "stats_share_btc" GROUP BY time(1m), * fill(none)
+#### pusher 
+> pusher进程，定期将聚合后的统计数据，传递到log_server
 
 
-SELECT mean("compute") as compute INTO "mining_stats"."two_weeks"."stats_share_btc_1min" FROM "mining_stats"."three_days"."stats_share_btc" GROUP BY time(1m), * fill(none) 
+### 数据库
+> 数据库采用时序数据库influxdb
 
+#### 前期准备
+- 创建数据库
 
-select count(*) from "mining_stats"."two_weeks"."stats_share_btc_1min"
-select count(*) from "mining_stats"."three_days"."stats_share_btc"
+` CREATE DATABASE "mining_stats"`
 
-select * from "mining_stats"."two_weeks"."stats_share_btc_1min" where "host_name"='windows2008' and "pid"='6' and "time">0m limit 200  offset 0
+- 创建保留策略
 
-### 获取分钟内用户总算力
-select sum(compute) from "mining_stats"."two_weeks"."stats_share_btc_1min" group by "user_name"
-SELECT last("compute_power") FROM "two_weeks".stats_share_btc_1min GROUP BY "hostname","pid"
+`CREATE RETENTION POLICY "three_days" on "mining_stats" DURATION 72h  REPLICATION 1 DEFAULT`
 
+`CREATE RETENTION POLICY "two_weeks" on "mining_stats" DURATION 336h  REPLICATION 1`
+- 创建连续查询
 
+`CREATE CONTINUOUS QUERY "cq_stats_btc_share_1min" ON "mining_stats" BEGIN SELECT count("host_name") as count, mean("compute_power") as compute_power, last("server_ip") as server_ip, last("client_ip") as client_ip, last("user_name") as user_name, last("ext_name") as ext_name, last("host_name") as host_name, last("user_agent") as user_agent, last("host_name") as host_name, last("pid") as pid, last("height") as height  INTO "mining_stats"."two_weeks"."stats_share_btc_1min" FROM "mining_stats"."three_days"."stats_share_btc" GROUP BY time(1m), worker_name, is_right fill(none) END`
 

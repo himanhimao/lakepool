@@ -9,7 +9,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"fmt"
 	"strings"
-	"strconv"
 	"time"
 	"errors"
 	"encoding/json"
@@ -26,41 +25,27 @@ func NewLogServer(client client.Client, conf *conf.LogConfig, blockBPConfig clie
 	return &LogServer{dbClient: client, config: conf, blockBPConfig: blockBPConfig, shareBPConfig: shareBPConfig}
 }
 
-func (s *LogServer) GetDBClient() client.Client {
-	return s.dbClient
-}
-
-func (s *LogServer) GetConf() *conf.LogConfig {
-	return s.config
-}
-
-func (s *LogServer) GetBlockBPConfig() client.BatchPointsConfig {
-	return s.blockBPConfig
-}
-
-func (s *LogServer) GetShareBPConfig() client.BatchPointsConfig {
-	return s.shareBPConfig
-}
-
 func (s *LogServer) QueryShareLogLatestTs(ctx context.Context, in *pb.QueryShareLogLatestTsRequest) (*pb.QueryShareLogLatestTsResponse, error) {
 	if len(in.CoinType) == 0 {
 		st := status.New(codes.InvalidArgument, "invalid coin type")
 		return nil, st.Err()
 	}
 
-	if len(in.Tags.Hostname) == 0 {
-		st := status.New(codes.InvalidArgument, "invalid tag host name")
+	if len(in.Tags.WorkerName) == 0 {
+		st := status.New(codes.InvalidArgument, "invalid tag worker name")
 		return nil, st.Err()
 	}
 
-	if in.Tags.Pid < 0 {
-		st := status.New(codes.InvalidArgument, "invalid tag pid")
-		return nil, st.Err()
+	var isRight int
+	if in.Tags.IsRight {
+		isRight = 1
+	} else {
+		isRight = 0
 	}
 
 	var measurement string = fmt.Sprintf("%s_%s", s.config.MeasurementSharePrefix, strings.ToLower(in.CoinType))
-	var command string = fmt.Sprintf("SELECT last(\"compute_power\") FROM %s WHERE \"host_name\"='%s' and \"pid\"='%d'",
-		measurement, in.Tags.Hostname, in.Tags.Pid)
+	var command string = fmt.Sprintf("SELECT last(\"compute_power\") FROM %s WHERE \"host_name\"='%s' and \"is_right\"='%d'", measurement,
+		in.Tags.WorkerName, isRight)
 
 	query := client.NewQuery(command, s.shareBPConfig.Database, s.shareBPConfig.Precision)
 	resp, err := s.dbClient.Query(query)
@@ -99,16 +84,15 @@ func (s *LogServer) AddBlockLog(ctx context.Context, in *pb.AddBlockLogRequest) 
 	fields := make(map[string]interface{})
 	tags := make(map[string]string)
 	tags["worker_name"] = in.Log.GetWorkerName()
-	tags["server_ip"] = in.Log.GetServerIp()
-	tags["client_ip"] = in.Log.GetClientIp()
-	tags["user_name"] = in.Log.GetUserName()
-	tags["user_agent"] = in.Log.GetUserAgent()
-	tags["ext_name"] = in.Log.GetExtName()
-	tags["host_name"] = in.Log.GetHostName()
-	tags["pid"] = strconv.Itoa(int(in.Log.GetPid()))
-	tags["height"] = strconv.Itoa(int(in.Log.GetHeight()))
-
-	fields["hash"] = in.Log.Hash
+	tags["hash"] = in.Log.Hash
+	fields["server_ip"] = in.Log.GetServerIp()
+	fields["client_ip"] = in.Log.GetClientIp()
+	fields["user_name"] = in.Log.GetUserName()
+	fields["user_agent"] = in.Log.GetUserAgent()
+	fields["ext_name"] = in.Log.GetExtName()
+	fields["host_name"] = in.Log.GetHostName()
+	fields["pid"] = int(in.Log.GetPid())
+	fields["height"] = int(in.Log.GetHeight())
 	t := time.Unix(0, in.Ts)
 	point, err := client.NewPoint(measurement, tags, fields, t)
 	if err != nil {
@@ -116,7 +100,7 @@ func (s *LogServer) AddBlockLog(ctx context.Context, in *pb.AddBlockLogRequest) 
 		return nil, st.Err()
 	}
 
-	bp, _ := client.NewBatchPoints(s.GetBlockBPConfig())
+	bp, _ := client.NewBatchPoints(s.blockBPConfig)
 	bp.AddPoint(point)
 
 	if err := s.dbClient.Write(bp); err != nil {
@@ -134,25 +118,26 @@ func (s *LogServer) AddMinShareLogs(ctx context.Context, in *pb.AddMinShareLogsR
 	}
 
 	measurement := fmt.Sprintf("%s_%s", s.config.MeasurementSharePrefix, strings.ToLower(in.CoinType))
-	bp, _ := client.NewBatchPoints(s.GetShareBPConfig())
+	bp, _ := client.NewBatchPoints(s.shareBPConfig)
 	for _, log := range in.Logs {
 		fields := make(map[string]interface{})
 		tags := make(map[string]string)
-		tags["host_name"] = log.HostName
-		tags["pid"] = strconv.Itoa(int(log.Pid))
-		tags["server_ip"] = log.ServerIp
-		tags["client_ip"] = log.ClientIp
-		tags["user_name"] = log.UserName
-		tags["ext_name"] = log.ExtName
 		tags["worker_name"] = log.WorkerName
-		tags["height"] = strconv.Itoa(int(log.Height))
-		tags["user_agent"] = log.UserAgent
 		if log.IsRight {
 			tags["is_right"] = "1"
 		} else {
 			tags["is_right"] = "0"
 		}
 
+		fields["pid"] = int(log.Pid)
+		fields["server_ip"] = log.ServerIp
+		fields["client_ip"] = log.ClientIp
+		fields["user_name"] = log.UserName
+		fields["ext_name"] = log.ExtName
+		fields["host_name"] = log.HostName
+		fields["height"] = int(log.Height)
+		fields["user_agent"] = log.UserAgent
+		fields["host_name"] = log.HostName
 		fields["compute_power"] = log.ComputePower
 		t := time.Unix(int64(log.Tm)*60, 0)
 		point, err := client.NewPoint(measurement, tags, fields, t)

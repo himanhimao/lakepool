@@ -33,14 +33,7 @@ func (s *StatsServer) AddShareLog(ctx context.Context, in *pb.AddShareLogRequest
 	fields := make(map[string]interface{})
 	tags := make(map[string]string)
 	tags["worker_name"] = in.Log.GetWorkerName()
-	tags["server_ip"] = in.Log.GetServerIp()
-	tags["client_ip"] = in.Log.GetClientIp()
-	tags["user_name"] = in.Log.GetUserName()
-	tags["user_agent"] = in.Log.GetUserAgent()
-	tags["ext_name"] = in.Log.GetExtName()
-	tags["host_name"] = in.Log.GetHostName()
-	tags["pid"] = strconv.Itoa(int(in.Log.GetPid()))
-	tags["height"] = strconv.Itoa(int(in.Log.GetHeight()))
+
 
 	if in.Log.IsRight {
 		tags["is_right"] = "1"
@@ -48,7 +41,16 @@ func (s *StatsServer) AddShareLog(ctx context.Context, in *pb.AddShareLogRequest
 		tags["is_right"] = "0"
 	}
 
+	fields["server_ip"] = in.Log.GetServerIp()
+	fields["client_ip"] = in.Log.GetClientIp()
+	fields["user_name"] = in.Log.GetUserName()
+	fields["ext_name"] = in.Log.GetExtName()
+	fields["user_agent"] = in.Log.GetUserAgent()
+	fields["host_name"] = in.Log.GetHostName()
+	fields["pid"] = strconv.Itoa(int(in.Log.GetPid()))
 	fields["compute_power"] = in.Log.ComputePower
+	fields["height"] = strconv.Itoa(int(in.Log.GetHeight()))
+
 	t := time.Unix(0, in.Ts)
 	sharePoint, err := client.NewPoint(measurement, tags, fields, t)
 	if err != nil {

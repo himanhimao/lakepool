@@ -21,8 +21,8 @@ const (
 )
 
 type SyncTags struct {
-	Pid      int
-	HostName string
+	WorkerName string
+	IsRight    int
 }
 
 type PushWorker struct {
@@ -77,34 +77,37 @@ func (p *PushWorker) sync() error {
 	for _, series := range result.Series {
 		var mustUpdate bool
 		var refTs int64
+		var localCount int64
 
-		pid, _ := strconv.Atoi(series.Tags["pid"])
-		hostName := series.Tags["host_name"]
+		workerName := series.Tags["worker_name"]
+		isRight, _ := strconv.Atoi(series.Tags["is_right"])
 		localLastTs, _ := series.Values[0][0].(json.Number).Int64()
-		tags := SyncTags{Pid: pid, HostName: hostName}
+		tags := SyncTags{WorkerName: workerName, IsRight: isRight}
 		targetLastTs, err := p.getTargetLastTs(tags)
 		if err != nil {
 			return err
 		}
 
-		if targetLastTs < localLastTs {
+		localCount, err = p.getLocalCount(tags, refTs)
+		if err != nil {
+			return err
+		}
+
+		if targetLastTs < localLastTs && localCount > 0 {
 			mustUpdate = true
 			refTs = targetLastTs
 		} else {
 			log.WithFields(log.Fields{
-				"pid":            pid,
-				"host_name":      hostName,
+				"worker_name":    workerName,
+				"is_right":       isRight,
 				"target_last_ts": targetLastTs,
 				"local_last_ts":  localLastTs,
+				"local_count": localCount,
 			}).Debugln("No need to update")
 			continue
 		}
 
 		if mustUpdate {
-			localCount, err := p.getLocalCount(tags, refTs)
-			if err != nil {
-				return err
-			}
 			pageTotal := (localCount / int64(p.conf.PerSize)) + 1
 			limit := p.conf.PerSize
 			pageNum := int(0)
@@ -114,8 +117,7 @@ func (p *PushWorker) sync() error {
 				offset := pageNum * p.conf.PerSize
 				row, err := p.getLocalSeries(tags, refTs, limit, offset)
 				if err != nil {
-					syncErr = errors.New(fmt.Sprintf("pid %d, hostname %s, limit %d, offset %d:%s", tags.Pid,
-						tags.HostName, limit, offset, err.Error()))
+					syncErr = errors.New(fmt.Sprintf("workerName %s, isRight $d limit %d, offset %d:%s", tags.WorkerName, tags.IsRight, limit, offset, err.Error()))
 					break
 				}
 				rowsLen := len(row.Values)
@@ -156,13 +158,13 @@ func (p *PushWorker) sync() error {
 					if r.Result {
 						p.syncTagsTimes[tags] = int64(pbMinShareLogs[len(pbMinShareLogs)-1].Tm)
 						log.WithFields(log.Fields{
-							"host_name": tags.HostName,
-							"pid":       tags.Pid,
+							"worker_name": tags.WorkerName,
+							"is_right":    tags.IsRight,
 						}).Info("add min share logs success")
 					} else {
 						log.WithFields(log.Fields{
-							"host_name": tags.HostName,
-							"pid":       tags.Pid,
+							"worker_name": tags.WorkerName,
+							"is_right":    tags.IsRight,
 						}).Error("add min share logs failed")
 					}
 				}
@@ -180,10 +182,18 @@ func (p *PushWorker) sync() error {
 func (p *PushWorker) getTargetLastTs(tags SyncTags) (int64, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*TIMEOUT)
 	defer cancel()
+
+	var isRight bool
+	if tags.IsRight > 0 {
+		isRight = true
+	} else {
+		isRight = false
+	}
+
 	targetResp, err := p.logGRPCClient.QueryShareLogLatestTs(ctx, &pb.QueryShareLogLatestTsRequest{
 		Tags: &pb.QueryShareLogTags{
-			Hostname: tags.HostName,
-			Pid:      int32(tags.Pid),
+			WorkerName: tags.WorkerName,
+			IsRight:    isRight,
 		},
 		CoinType: p.conf.CoinType,
 	})
@@ -196,7 +206,7 @@ func (p *PushWorker) getTargetLastTs(tags SyncTags) (int64, error) {
 
 func (p *PushWorker) getLocalGroupSeries() (client.Result, error) {
 	var query client.Query
-	var command string = fmt.Sprintf("SELECT last(\"compute_power\") FROM %s GROUP BY \"host_name\",\"pid\"", p.formatMeasurement())
+	var command = fmt.Sprintf("SELECT last(\"compute_power\") FROM %s GROUP BY \"worker_name\"", p.formatMeasurement())
 
 	if len(p.conf.RetentionStrategy) > 0 {
 		query = client.NewQueryWithRP(command, p.conf.Database, p.conf.RetentionStrategy, p.conf.Precision)
@@ -231,11 +241,11 @@ func (p *PushWorker) getLocalCount(tags SyncTags, ts int64) (int64, error) {
 	var query client.Query
 	var command string
 	if ts > 0 {
-		command = fmt.Sprintf("SELECT count(\"compute_power\") FROM %s WHERE \"host_name\"='%s'"+
-			" and \"pid\"='%d' and \"time\">%d%s", p.formatMeasurement(), tags.HostName, tags.Pid, ts, p.conf.Precision)
+		command = fmt.Sprintf("SELECT count(*) FROM %s WHERE \"worker_name\"='%s' and \"is_right\"='%d'"+
+			" and \"time\">%d%s", p.formatMeasurement(), tags.WorkerName, tags.IsRight, ts, p.conf.Precision)
 	} else {
-		command = fmt.Sprintf("SELECT count(\"compute_power\") FROM %s WHERE \"host_name\"='%s'"+
-			" and \"pid\"='%d'", p.formatMeasurement(), tags.HostName, tags.Pid)
+		command = fmt.Sprintf("SELECT count(*) FROM %s WHERE \"worker_name\"='%s' and \"is_right\"='%d'",
+			p.formatMeasurement(), tags.WorkerName, tags.IsRight)
 	}
 
 	if len(p.conf.RetentionStrategy) > 0 {
@@ -263,10 +273,9 @@ func (p *PushWorker) getLocalSeries(tags SyncTags, ts int64, limit int, offset i
 	var query client.Query
 	var command string
 
-	command = fmt.Sprintf("SELECT * FROM %s WHERE \"host_name\"='%s'"+
-		" and \"pid\"='%d' and \"time\">%d%s LIMIT %d OFFSET %d", p.formatMeasurement(), tags.HostName, tags.Pid, ts,
+	command = fmt.Sprintf("SELECT * FROM %s WHERE \"worker_name\"='%s' and \"is_right\"='%d'"+
+		" and \"time\">%d%s LIMIT %d OFFSET %d", p.formatMeasurement(), tags.WorkerName, tags.IsRight, ts,
 		p.conf.Precision, limit, offset)
-
 	fmt.Println(command)
 
 	if len(p.conf.RetentionStrategy) > 0 {

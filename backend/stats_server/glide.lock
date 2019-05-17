@@ -1,5 +1,5 @@
 hash: 748fa661ca9b33010d906e26b82ebe65ef4dbf7023882ab0b3690ceb6e80e96e
-updated: 2019-04-24T15:40:17.322717+08:00
+updated: 2019-05-17T15:18:02.890703+08:00
 imports:
 - name: github.com/golang/protobuf
   version: b5d812f8a3706043e23a9cd5babf2e5423744d30
@@ -11,7 +11,7 @@ imports:
   - ptypes/duration
   - ptypes/timestamp
 - name: github.com/himanhimao/lakepool_proto
-  version: a94ee9e0eb05449af8b206084c894cf56909fc21
+  version: f06e91ad00b670b275b0a739bf0d10bf8d447a2d
   subpackages:
   - backend/proto_log
   - backend/proto_stats

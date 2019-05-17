@@ -1,0 +1,89 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: lakepool-backend-log-server
+  namespace: log
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        run: lakepool-backend-log-server
+    spec:
+      containers:
+        - args:
+          - log-server
+          - run
+          name:  lakepool-backend-log-server
+          image:  asia.gcr.io/lakepool/backend_log_server:latest
+          imagePullPolicy: Always
+          env:
+          - name: LOG_SERVER_PORT
+            valueFrom:
+              configMapKeyRef:
+                name: log-configmap
+                key: port
+                optional: true
+          - name: LOG_MODE
+            valueFrom:
+              configMapKeyRef:
+                name: log-configmap
+                key: mode
+                optional: true
+          - name: LOG_BlOCK_DATABASE
+            valueFrom:
+              configMapKeyRef:
+                name: log-db-configmap
+                key: block_database
+                optional: true
+          - name: LOG_BLOCK_PRECISION
+            valueFrom:
+              configMapKeyRef:
+                name: log-db-configmap
+                key: block_precision
+                optional: true
+          - name: LOG_SHARE_DATABASE
+            valueFrom:
+              configMapKeyRef:
+                name: log-db-configmap
+                key: share_database
+                optional: true
+          - name: LOG_SHARE_PRECISION
+            valueFrom:
+              configMapKeyRef:
+                name: log-db-configmap
+                key: share_precision
+                optional: true
+          - name: LOG_MEASUREMENT_SHARE_PREFIX
+            valueFrom:
+              configMapKeyRef:
+                name: log-db-configmap
+                key: measurement_share_prefix
+                optional: true
+          - name: LOG_MEASUREMENT_BLOCK_PREFIX
+            valueFrom:
+              configMapKeyRef:
+                name: log-db-configmap
+                key: measurement_block_prefix
+                optional: true
+          - name: LOG_DB_ADDR
+            valueFrom:
+              secretKeyRef:
+                name: log-db-secret
+                key: addr
+                optional: false
+          - name: LOG_DB_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: log-db-secret
+                key: username
+                optional: false
+          - name: LOG_DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: log-db-secret
+                key: password
+                optional: false
