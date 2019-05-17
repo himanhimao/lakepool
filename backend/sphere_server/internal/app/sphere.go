@@ -277,14 +277,14 @@ func (s *SphereServer) Subscribe(in *pb.GetLatestStratumJobRequest, stream pb.Sp
 
 	pullGBTInterval := s.Conf.Configs[register.CoinType].PullGBTInterval
 	notifyInterval := s.Conf.Configs[register.CoinType].NotifyInterval
-	notifyTicker := time.NewTicker(time.Second * notifyInterval)
-	pullGBTTicker := time.NewTicker(time.Millisecond * pullGBTInterval)
+	notifyTicker := time.NewTicker(notifyInterval)
+	pullGBTTicker := time.NewTicker(pullGBTInterval)
 
 	var stratumJobPart *service.StratumJobPart
 	var blockTransactions []*service.BlockTransactionPart
 	var tmpJobPart *service.StratumJobPart
 	var tmpBlockTransactionParts []*service.BlockTransactionPart
-	jobCacheExpireTs := int(s.Conf.Configs[register.CoinType].JobCacheExpireTs)
+	jobCacheExpireTs := int(s.Conf.Configs[register.CoinType].JobCacheExpireTs.Seconds())
 
 	for {
 		select {
@@ -293,7 +293,7 @@ func (s *SphereServer) Subscribe(in *pb.GetLatestStratumJobRequest, stream pb.Sp
 		case <-notifyTicker.C:
 			if stratumJobPart != nil {
 				jobKey := service.GenJobKey(registerId, stratumJobPart.Meta.Height, stratumJobPart.Meta.CurTimeTs)
-				err = cacheService.SetBlockTransactions(jobKey, int(jobCacheExpireTs), blockTransactions)
+				err = cacheService.SetBlockTransactions(jobKey, jobCacheExpireTs, blockTransactions)
 				if err != nil {
 					st := status.New(codes.Internal, err.Error())
 					return st.Err()
