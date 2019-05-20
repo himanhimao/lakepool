@@ -92,7 +92,7 @@ func (p *PushWorker) sync() error {
 		if err != nil {
 			return err
 		}
-
+		
 		if targetLastTs < localLastTs && localCount > 0 {
 			mustUpdate = true
 			refTs = targetLastTs
@@ -125,23 +125,38 @@ func (p *PushWorker) sync() error {
 					pbMinShareLogs := make([]*pb.MinShareLog, rowsLen)
 					for index, value := range row.Values {
 						pbMinShareLog := new(pb.MinShareLog)
-						tm, _ := value[0].(json.Number).Int64()
-						pbMinShareLog.Tm = int32(tm)
-						pbMinShareLog.ClientIp = value[1].(string)
-						computePower, _ := value[2].(json.Number).Float64()
-						pbMinShareLog.ComputePower = computePower
-						pbMinShareLog.ExtName = value[3].(string)
-						height, _ := strconv.Atoi(value[4].(string))
-						pbMinShareLog.Height = int32(height)
-						pbMinShareLog.HostName = value[5].(string)
-						isRight, _ := strconv.ParseBool(value[6].(string))
-						pbMinShareLog.IsRight = isRight
-						pid, _ := strconv.Atoi(value[7].(string))
-						pbMinShareLog.Pid = int32(pid)
-						pbMinShareLog.ServerIp = value[8].(string)
-						pbMinShareLog.UserAgent = value[9].(string)
-						pbMinShareLog.UserName = value[10].(string)
-						pbMinShareLog.WorkerName = value[11].(string)
+						for i, column := range row.Columns {
+							if column == "time" {
+								tm, _ := value[i].(json.Number).Int64()
+								pbMinShareLog.Tm = int32(tm)
+							} else if column == "client_ip" {
+								pbMinShareLog.ClientIp = value[i].(string)
+							} else if column == "compute_power" {
+								computePower, _ := value[i].(json.Number).Float64()
+								pbMinShareLog.ComputePower = computePower
+							} else if column == "ext_name" {
+								pbMinShareLog.ExtName = value[i].(string)
+							} else if column == "height" {
+								height, _ := strconv.Atoi(value[i].(string))
+								pbMinShareLog.Height = int32(height)
+							} else if column == "host_name" {
+								pbMinShareLog.HostName = value[i].(string)
+							} else if column == "is_right" {
+								isRight, _ := strconv.ParseBool(value[i].(string))
+								pbMinShareLog.IsRight = isRight
+							} else if column == "pid" {
+								pid, _ := strconv.Atoi(value[i].(string))
+								pbMinShareLog.Pid = int32(pid)
+							} else if column == "server_ip" {
+								pbMinShareLog.ServerIp = value[i].(string)
+							} else if column == "user_agent" {
+								pbMinShareLog.UserAgent = value[i].(string)
+							} else if column == "user_name" {
+								pbMinShareLog.UserName = value[i].(string)
+							} else if column == "worker_name" {
+								pbMinShareLog.WorkerName = value[i].(string)
+							}
+						}
 						pbMinShareLogs[index] = pbMinShareLog
 					}
 
@@ -206,7 +221,8 @@ func (p *PushWorker) getTargetLastTs(tags SyncTags) (int64, error) {
 
 func (p *PushWorker) getLocalGroupSeries() (client.Result, error) {
 	var query client.Query
-	var command = fmt.Sprintf("SELECT last(\"compute_power\") FROM %s GROUP BY \"worker_name\"", p.formatMeasurement())
+	var command = fmt.Sprintf("SELECT last(\"compute_power\") FROM %s GROUP BY \"worker_name\",\"is_right\"",
+		p.formatMeasurement())
 
 	if len(p.conf.RetentionStrategy) > 0 {
 		query = client.NewQueryWithRP(command, p.conf.Database, p.conf.RetentionStrategy, p.conf.Precision)
@@ -276,7 +292,6 @@ func (p *PushWorker) getLocalSeries(tags SyncTags, ts int64, limit int, offset i
 	command = fmt.Sprintf("SELECT * FROM %s WHERE \"worker_name\"='%s' and \"is_right\"='%d'"+
 		" and \"time\">%d%s LIMIT %d OFFSET %d", p.formatMeasurement(), tags.WorkerName, tags.IsRight, ts,
 		p.conf.Precision, limit, offset)
-	fmt.Println(command)
 
 	if len(p.conf.RetentionStrategy) > 0 {
 		query = client.NewQueryWithRP(command, p.conf.Database, p.conf.RetentionStrategy, p.conf.Precision)
