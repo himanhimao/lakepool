@@ -44,7 +44,7 @@ func (s *LogServer) QueryShareLogLatestTs(ctx context.Context, in *pb.QueryShare
 	}
 
 	var measurement string = fmt.Sprintf("%s_%s", s.config.MeasurementSharePrefix, strings.ToLower(in.CoinType))
-	var command string = fmt.Sprintf("SELECT last(\"compute_power\") FROM %s WHERE \"host_name\"='%s' and \"is_right\"='%d'", measurement,
+	var command string = fmt.Sprintf("SELECT last(\"compute_power\") FROM %s WHERE \"worker_name\"='%s' and \"is_right\"='%d'", measurement,
 		in.Tags.WorkerName, isRight)
 
 	query := client.NewQuery(command, s.shareBPConfig.Database, s.shareBPConfig.Precision)
@@ -137,7 +137,6 @@ func (s *LogServer) AddMinShareLogs(ctx context.Context, in *pb.AddMinShareLogsR
 		fields["host_name"] = log.HostName
 		fields["height"] = int(log.Height)
 		fields["user_agent"] = log.UserAgent
-		fields["host_name"] = log.HostName
 		fields["compute_power"] = log.ComputePower
 		t := time.Unix(int64(log.Tm)*60, 0)
 		point, err := client.NewPoint(measurement, tags, fields, t)
