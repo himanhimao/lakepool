@@ -49,4 +49,11 @@
 
 ### 结果验证
 - 查询结果
-`SELECT * FROM select * from mining_stats.two_weeks.stats_share_btc_1min`
+`SELECT * FROM "mining_stats"."two_weeks"."stats_share_btc_1min"`
+
+
+## 部署
+> docker build 
+```
+cd lakepool/backend/stats_server
+docker build -t lakepool/backend_stats_server -f build/Dockerfile .

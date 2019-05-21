@@ -16,45 +16,14 @@
 ### 后端架构图
 ![backend architecture](docs/images/lakepool-backend-arch.png)
 
-### 模块
-#### stratum server
-##### 简介
-> stratum协议的标准实现，负责与矿机建立链接，处理消息的分发工作
+### 组件
+- [stratum server](backend/stratum_server/README.MD)
 
-#### stats server 
-##### 简介
-> 聚合器，负责统计单个stratum server的出块记录和share记录，降日志的粒度聚合到分钟
- 
-#### log server
-##### 简介
-> 公共的日志服务, 负责记录整个集群的日志服务(出块日志，share日志)
+- [stats server](backend/stats_server/README.MD) 
 
-#### sphere server
-##### 简介
-> 公共的核心服务，负责验证各币种的share, 向各个币种推送job.
+- [log server](backend/log_server/README.MD)
 
-### DOCKER BUILD
-> log-server 
-```
-cd lakepool/backend/log_server
-docker build -t lakepool/backend_log_server -f build/Dockerfile .
-```
-> sphere-server 
-```
-cd lakepool/backend/sphere_server
-docker build -t lakepool/backend_sphere_server -f build/Dockerfile .
-```
-> stats-server 
-```
-cd lakepool/backend/stats_server
-docker build -t lakepool/backend_stats_server -f build/Dockerfile .
-```
-> stratum-server
-```
-cd lakepool/backend/stratum_server
-docker build -t lakepool/backend_stratum_server -f build/Dockerfile .
-```
-### K8S DEPLOYMENT
+- [sphere server](backend/sphere_server/README.MD)
 
 # 中台
 
