@@ -61,7 +61,5 @@
 
 
 ## 部署
-> docker build 
-```
-cd lakepool/backend/log_server
-docker build -t lakepool/backend_log_server -f build/Dockerfile .
+#### Build Image
+`docker build -t lakepool/backend_log_server -f build/Dockerfile .`

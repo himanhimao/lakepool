@@ -53,7 +53,5 @@
 
 
 ## 部署
-> docker build 
-```
-cd lakepool/backend/stats_server
-docker build -t lakepool/backend_stats_server -f build/Dockerfile .
+#### Build Image
+`docker build -t lakepool/backend_stats_server -f build/Dockerfile .`
