@@ -3,7 +3,6 @@
 
 
 ### 主要模块
-
 #### server
 > 接口服务器， stratum_server 会将日志数据通过接口上传至stats_server, 并持久化存储
 
@@ -15,19 +14,20 @@
 > 数据库采用时序数据库influxdb
 
 ### 数据字典
-- tags
-    - worker_name
-    - is_right
-- fields
-    - compute_power
-    - server_ip
-    - client_ip
-    - user_name
-    - ext_name
-    - host_name
-    - user_agent
-    - pid 
-    - height 
+- share_log 
+    - tags
+        - worker_name
+        - is_right
+    - fields
+        - compute_power
+        - server_ip
+        - client_ip
+        - user_name
+        - ext_name
+        - host_name
+        - user_agent
+        - pid 
+        - height 
 
 ### 聚合维度
 > worker_name, is_right, 1min 
