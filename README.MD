@@ -3,7 +3,7 @@
 #### 整体架构图
 ![architecture](docs/images/lakepool-arch.png)
 
-#后端
+# 后端
 
 ### 设计初衷
 - 设计一个多币种的挖矿架构
