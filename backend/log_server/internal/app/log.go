@@ -82,9 +82,7 @@ func (s *LogServer) AddBlockLog(ctx context.Context, in *pb.AddBlockLogRequest) 
 
 	measurement := fmt.Sprintf("%s_%s", s.config.MeasurementBlockPrefix, strings.ToLower(in.CoinType))
 	fields := make(map[string]interface{})
-	tags := make(map[string]string)
-	tags["worker_name"] = in.Log.GetWorkerName()
-	tags["hash"] = in.Log.Hash
+	fields["worker_name"] = in.Log.GetWorkerName()
 	fields["server_ip"] = in.Log.GetServerIp()
 	fields["client_ip"] = in.Log.GetClientIp()
 	fields["user_name"] = in.Log.GetUserName()
@@ -92,9 +90,10 @@ func (s *LogServer) AddBlockLog(ctx context.Context, in *pb.AddBlockLogRequest) 
 	fields["ext_name"] = in.Log.GetExtName()
 	fields["host_name"] = in.Log.GetHostName()
 	fields["pid"] = int(in.Log.GetPid())
+	fields["hash"] = in.Log.Hash
 	fields["height"] = int(in.Log.GetHeight())
 	t := time.Unix(0, in.Ts)
-	point, err := client.NewPoint(measurement, tags, fields, t)
+	point, err := client.NewPoint(measurement, nil, fields, t)
 	if err != nil {
 		st := status.New(codes.Internal, err.Error())
 		return nil, st.Err()
