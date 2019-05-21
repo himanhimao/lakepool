@@ -32,9 +32,10 @@ func Subscribe(s *server.Server, ev cellnet.Event) {
 	stratumContext, ok := contextSet.GetContext(sid)
 	if ok {
 		if len(userAgent) > 0 {
-			stratumContext.(*context.StratumContext).SetSubscribeUserAgent(userAgent)
+			stratumContext.(*context.StratumContext).UserAgent = userAgent
 		}
-		stratumContext.(*context.StratumContext).SetSubscribeTs(time.Now().Unix()).SetSubscribeSessionID(extraNonce1)
+		stratumContext.(*context.StratumContext).SubscribeTs = time.Now().Unix()
+		stratumContext.(*context.StratumContext).SessionID = extraNonce1
 	} else {
 		log.WithFields(log.Fields{
 			"sid": sid,
@@ -83,7 +84,7 @@ func Authorize(s *server.Server, ev cellnet.Event) {
 		return
 	}
 
-	if stratumContext.(*context.StratumContext).GetSubScribeTs() == 0 {
+	if stratumContext.(*context.StratumContext).SubscribeTs == 0 {
 		log.WithFields(log.Fields{
 			"sid": sid,
 		}).Errorln("not Subscribed")
@@ -113,8 +114,12 @@ func Authorize(s *server.Server, ev cellnet.Event) {
 	}
 
 	password := authorizeREQ.Password
-	stratumContext.(*context.StratumContext).SetAuthorizeWorkerName(workerName).SetAuthorizeUserName(username).
-		SetAuthorizeExtName(extName).SetAuthorizePassword(password).SetAuthorizeTs(time.Now().Unix())
+	stratumContext.(*context.StratumContext).WorkerName = workerName
+	stratumContext.(*context.StratumContext).UserName = username
+	stratumContext.(*context.StratumContext).ExtName = extName
+	stratumContext.(*context.StratumContext).Password = password
+	stratumContext.(*context.StratumContext).AcceptedTs = time.Now().Unix()
+
 	log.WithFields(log.Fields{
 		"sid":         sid,
 		"msg_id":      msgId,
@@ -142,7 +147,7 @@ func Authorize(s *server.Server, ev cellnet.Event) {
 
 	//验证通过 发送难度数据 还有任务数据
 	var defaultDifficulty uint64
-	userAgent := stratumContext.(*context.StratumContext).GetSubscribeUserAgent()
+	userAgent := stratumContext.(*context.StratumContext).UserAgent
 
 	if len(userAgent) == 0 {
 		defaultDifficulty = config.DefaultDifficulty
@@ -155,7 +160,7 @@ func Authorize(s *server.Server, ev cellnet.Event) {
 	}
 
 	//发送难度
-	stratumContext.(*context.StratumContext).SetLatestDifficulty(defaultDifficulty)
+	stratumContext.(*context.StratumContext).LatestDifficulty = defaultDifficulty
 	difficultyResp := proto.NewJSONRpcSetDifficultyRESP(defaultDifficulty)
 	ev.Session().Send(difficultyResp)
 
@@ -178,8 +183,12 @@ func Authorize(s *server.Server, ev cellnet.Event) {
 	}
 
 	stratumJob = stratumJob.Fill(jobId, latestNotifyTs, true)
-	stratumContext.(*context.StratumContext).SetLatestNotifyJobHeight(latestJobHeight).SetStartNotifyTs(startNotifyTs).
-		SetLatestNotifyTs(latestNotifyTs).SetLatestNotifyJobIndex(latestJobIndex).IncrNotifyCount()
+	stratumContext.(*context.StratumContext).LatestNotifyJobHeight = latestJobHeight
+	stratumContext.(*context.StratumContext).StartNotifyTs = startNotifyTs
+	stratumContext.(*context.StratumContext).LatestNotifyTs = latestNotifyTs
+	stratumContext.(*context.StratumContext).LatestNotifyJobIndex = latestJobIndex
+	stratumContext.(*context.StratumContext).NotifyCount ++
+
 	notifyRESP := proto.NewJSONRpcNotifyRESP(stratumJob.ToJSONInterface())
 	ev.Session().Send(notifyRESP)
 
@@ -205,7 +214,7 @@ func Authorize(s *server.Server, ev cellnet.Event) {
 				ses.ProcEvent(&cellnet.RecvMsgEvent{Ses: ses, Msg: &proto.JobHeightCheck{}})
 			}
 		}
-	}(stratumContext.(*context.StratumContext).GetContext(), ev.Session().(*tcp.StratumSession))
+	}(stratumContext.(*context.StratumContext).Context, ev.Session().(*tcp.StratumSession))
 }
 
 func Submit(s *server.Server, ev cellnet.Event) {
@@ -233,9 +242,9 @@ func Submit(s *server.Server, ev cellnet.Event) {
 	stratumContext, ok := contextSet.GetContext(sid)
 	errUnknownRESP := proto.NewErrOtherUnknownRESP(msgId)
 	errUnauthorizedWorkerResp := proto.NewErrUnauthorizedWorkerRESP(msgId)
-	stratumContext.(*context.StratumContext).IncrSubmitCount()
+	stratumContext.(*context.StratumContext).SubmitCount++
 
-	if stratumContext.(*context.StratumContext).GetAuthorizeTs() == 0 || workerName != stratumContext.(*context.StratumContext).GetAuthorizeWorkerName() {
+	if stratumContext.(*context.StratumContext).AuthorizeTs == 0 || workerName != stratumContext.(*context.StratumContext).WorkerName {
 		log.WithFields(log.Fields{
 			"sid":         sid,
 			"worker_name": workerName,
@@ -296,7 +305,7 @@ func Submit(s *server.Server, ev cellnet.Event) {
 		return
 	}
 
-	slideWindow := stratumContext.(*context.StratumContext).GetSlideWindow()
+	slideWindow := stratumContext.(*context.StratumContext).SlideWindow
 	if slideWindow == nil {
 		log.WithFields(log.Fields{
 			"sid":         sid,
@@ -308,7 +317,7 @@ func Submit(s *server.Server, ev cellnet.Event) {
 	}
 	slideWindow.Add(1)
 
-	extraNonce1 := stratumContext.(*context.StratumContext).GetSubscribeSessionID()
+	extraNonce1 := stratumContext.(*context.StratumContext).SessionID
 	share := job.ToShare()
 	share.SetExtraNonce1(extraNonce1).SetExtraNonce2(extraNonce2).SetNTime(nTime).SetNonce(nonce)
 
@@ -320,7 +329,7 @@ func Submit(s *server.Server, ev cellnet.Event) {
 			"worker_name": workerName,
 			"error":       err,
 		}).Errorln("submit share error")
-		stratumContext.(*context.StratumContext).IncrErrorCount()
+		stratumContext.(*context.StratumContext).ErrorCount++
 		ev.Session().Send(submitRefuseRESP)
 		return
 	}
@@ -332,7 +341,7 @@ func Submit(s *server.Server, ev cellnet.Event) {
 			"worker_name": workerName,
 			"status":      shareResult.State,
 		}).Infoln("submit share failed")
-		stratumContext.(*context.StratumContext).IncrRejectCount()
+		stratumContext.(*context.StratumContext).RejectCount++
 		ev.Session().Send(submitRefuseRESP)
 	} else {
 		isRightShare = true
@@ -342,18 +351,18 @@ func Submit(s *server.Server, ev cellnet.Event) {
 			"compute_power": shareResult.ComputePower,
 		}).Infoln("submit share success")
 		submitPassRESP := proto.NewSubmitRESP(msgId, proto.SubmitPass)
-		stratumContext.(*context.StratumContext).IncrAcceptCount()
+		stratumContext.(*context.StratumContext).AcceptCount++
 		ev.Session().Send(submitPassRESP)
 	}
 
 	//add share log
 	hostName, _ := s.GetSysInfo().GetHostName()
 	pid := int32(s.GetSysInfo().GetPid())
-	clientIp := stratumContext.(*context.StratumContext).GetConnRemoteIP()
-	serverIp := stratumContext.(*context.StratumContext).GetConnLocalIP()
-	userAgent := stratumContext.(*context.StratumContext).GetSubscribeUserAgent()
-	username := stratumContext.(*context.StratumContext).GetAuthorizeUserName()
-	extName := stratumContext.(*context.StratumContext).GetAuthorizeExtName()
+	clientIp := stratumContext.(*context.StratumContext).RemoteIP
+	serverIp := stratumContext.(*context.StratumContext).LocalIP
+	userAgent := stratumContext.(*context.StratumContext).UserAgent
+	username := stratumContext.(*context.StratumContext).UserName
+	extName := stratumContext.(*context.StratumContext).ExtName
 	coinType := s.GetConfig().StratumConfig.CoinType
 	t := time.Now()
 

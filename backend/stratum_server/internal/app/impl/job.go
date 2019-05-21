@@ -14,19 +14,20 @@ func JobNotify(s *server.Server, ev cellnet.Event) {
 	sid := ev.Session().ID()
 	contextSet := ev.Session().Peer().(cellnet.ContextSet)
 	stratumContext, ok := contextSet.GetContext(sid)
+	stratumContext.(*context.StratumContext).NotifyMutex.Lock()
+
 
 	if !ok {
 		log.WithFields(log.Fields{"sid": sid}).Errorln("job notify check not found context")
-		stratumContext.(*context.StratumContext).NotifyUnlock()
+		stratumContext.(*context.StratumContext).NotifyMutex.Unlock()
 		ev.Session().Close()
 		return
 	}
 
-	stratumContext.(*context.StratumContext).NotifyLock()
-	workerName := stratumContext.(*context.StratumContext).GetAuthorizeWorkerName()
+	workerName := stratumContext.(*context.StratumContext).WorkerName
 	notifyLoopInterval := s.GetConfig().StratumConfig.NotifyLoopInterval
 	notifyLoopIntervalTs := int(notifyLoopInterval)
-	latestNotifyTs := stratumContext.(*context.StratumContext).GetLatestNotifyTs()
+	latestNotifyTs := stratumContext.(*context.StratumContext).LatestNotifyTs
 	diffTs := int(time.Now().Unix() - latestNotifyTs)
 
 	// 如果时间不满足, sleep
@@ -35,9 +36,9 @@ func JobNotify(s *server.Server, ev cellnet.Event) {
 		time.Sleep(time.Duration(sleepTs) * time.Second)
 	}
 
-	latestNotifyJobHeight := stratumContext.(*context.StratumContext).GetLatestNotifyJobHeight()
-	latestNotifyJobIndex := stratumContext.(*context.StratumContext).GetLatestNotifyJobIndex()
-	latestDifficulty := stratumContext.(*context.StratumContext).GetLatestDifficulty()
+	latestNotifyJobHeight := stratumContext.(*context.StratumContext).LatestNotifyJobHeight
+	latestNotifyJobIndex := stratumContext.(*context.StratumContext).LatestNotifyJobIndex
+	latestDifficulty := stratumContext.(*context.StratumContext).LatestDifficulty
 
 	newNotifyTs := time.Now().Unix()
 	newNotifyJobIndex := latestNotifyJobIndex + 1
@@ -47,14 +48,16 @@ func JobNotify(s *server.Server, ev cellnet.Event) {
 			"sid":         sid,
 			"worker_name": workerName,
 		}).Errorln("jobNotify height not found new job")
-		stratumContext.(*context.StratumContext).NotifyUnlock()
+		stratumContext.(*context.StratumContext).NotifyMutex.Unlock()
 		ev.Session().Close()
 		return
 	}
 	jobId := service.GenerateJobId(latestNotifyJobHeight, latestNotifyJobIndex, latestDifficulty)
 	newJob = newJob.Fill(jobId, latestNotifyTs, false)
-	stratumContext.(*context.StratumContext).SetLatestNotifyJobHeight(latestNotifyJobHeight).SetLatestNotifyTs(newNotifyTs).
-		SetLatestNotifyJobIndex(newNotifyJobIndex).IncrNotifyCount()
+	stratumContext.(*context.StratumContext).LatestNotifyJobHeight = latestNotifyJobHeight
+	stratumContext.(*context.StratumContext).LatestNotifyTs =  newNotifyTs
+	stratumContext.(*context.StratumContext).LatestNotifyJobIndex = newNotifyJobIndex
+	stratumContext.(*context.StratumContext).NotifyCount ++
 
 	notifyRESP := proto.NewJSONRpcNotifyRESP(newJob.ToJSONInterface())
 	ev.Session().Send(notifyRESP)
@@ -64,7 +67,7 @@ func JobNotify(s *server.Server, ev cellnet.Event) {
 		"height":    newJob.GetMeta().GetHeight(),
 		"job_index": newNotifyJobIndex,
 	}).Infoln("Sent new job")
-	stratumContext.(*context.StratumContext).NotifyUnlock()
+	stratumContext.(*context.StratumContext).NotifyMutex.Unlock()
 }
 
 func JobDifficultyCheck(s *server.Server, ev cellnet.Event) {
@@ -77,11 +80,11 @@ func JobDifficultyCheck(s *server.Server, ev cellnet.Event) {
 		return
 	}
 
-	slideWindow := stratumContext.(*context.StratumContext).GetSlideWindow()
-	workerName := stratumContext.(*context.StratumContext).GetAuthorizeWorkerName()
+	slideWindow := stratumContext.(*context.StratumContext).SlideWindow
+	workerName := stratumContext.(*context.StratumContext).WorkerName
 	minDifficulty := s.GetConfig().StratumConfig.MinDifficulty
 	maxDifficulty := s.GetConfig().StratumConfig.MaxDifficulty
-	difficulty := stratumContext.(*context.StratumContext).GetLatestDifficulty()
+	difficulty := stratumContext.(*context.StratumContext).LatestDifficulty
 	difficultyCheckInterval := s.GetConfig().StratumConfig.DifficultyCheckLoopInterval
 
 	factor := 1 * s.GetConfig().StratumConfig.DifficultyFactor
@@ -133,7 +136,7 @@ func JobDifficultyCheck(s *server.Server, ev cellnet.Event) {
 		return
 	}
 
-	stratumContext.(*context.StratumContext).SetLatestDifficulty(curDifficulty)
+	stratumContext.(*context.StratumContext).LatestDifficulty = curDifficulty
 	difficultyResp := proto.NewJSONRpcSetDifficultyRESP(curDifficulty)
 	ev.Session().Send(difficultyResp)
 }
@@ -143,20 +146,20 @@ func JobHeightCheck(s *server.Server, ev cellnet.Event) {
 
 	contextSet := ev.Session().Peer().(cellnet.ContextSet)
 	stratumContext, ok := contextSet.GetContext(sid)
+	stratumContext.(*context.StratumContext).NotifyMutex.Lock()
 
 	if !ok {
 		log.WithFields(log.Fields{
 			"sid": sid,
 		}).Errorln("job height check not found context")
-		stratumContext.(*context.StratumContext).NotifyUnlock()
+		stratumContext.(*context.StratumContext).NotifyMutex.Unlock()
 		ev.Session().Close()
 		return
 	}
 
-	stratumContext.(*context.StratumContext).NotifyLock()
-	workerName := stratumContext.(*context.StratumContext).GetAuthorizeWorkerName()
-	latestDifficulty := stratumContext.(*context.StratumContext).GetLatestDifficulty()
-	currentNotifyJobHeight := stratumContext.(*context.StratumContext).GetLatestNotifyJobHeight()
+	workerName := stratumContext.(*context.StratumContext).WorkerName
+	latestDifficulty := stratumContext.(*context.StratumContext).LatestDifficulty
+	currentNotifyJobHeight := stratumContext.(*context.StratumContext).LatestNotifyJobHeight
 	latestJobHeight := s.GetJobRepo().GetLatestHeight()
 	if currentNotifyJobHeight != latestJobHeight {
 		latestJobIndex := 0
@@ -168,15 +171,18 @@ func JobHeightCheck(s *server.Server, ev cellnet.Event) {
 				"sid":         sid,
 				"worker_name": workerName,
 			}).Errorln("job height check not found new job")
-			stratumContext.(*context.StratumContext).NotifyUnlock()
+			stratumContext.(*context.StratumContext).NotifyMutex.Unlock()
 			ev.Session().Close()
 			return
 		}
 
 		jobId := service.GenerateJobId(latestJobHeight, latestJobIndex, latestDifficulty)
 		newJob = newJob.Fill(jobId, latestNotifyTs, true)
-		stratumContext.(*context.StratumContext).SetLatestNotifyJobHeight(latestJobHeight).SetLatestNotifyTs(latestNotifyTs).
-			SetLatestNotifyJobIndex(latestJobIndex).IncrNotifyCount()
+		stratumContext.(*context.StratumContext).LatestNotifyJobHeight = latestJobHeight
+		stratumContext.(*context.StratumContext).LatestNotifyTs = latestNotifyTs
+		stratumContext.(*context.StratumContext).LatestNotifyJobIndex = latestJobIndex
+		stratumContext.(*context.StratumContext).NotifyCount++
+
 		notifyRESP := proto.NewJSONRpcNotifyRESP(newJob.ToJSONInterface())
 		ev.Session().Send(notifyRESP)
 
@@ -187,5 +193,5 @@ func JobHeightCheck(s *server.Server, ev cellnet.Event) {
 		}).Infoln("Sent a new height job")
 	}
 
-	stratumContext.(*context.StratumContext).NotifyUnlock()
+	stratumContext.(*context.StratumContext).NotifyMutex.Unlock()
 }

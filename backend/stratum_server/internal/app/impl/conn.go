@@ -21,7 +21,10 @@ func Accepted(s *server.Server, ev cellnet.Event) {
 	windowDuration := difficultyCheckInterval * time.Second
 	slideWindow := average.MustNew(5*windowDuration, windowDuration)
 
-	stratumContext.SetConnLocalIP(localIP.String()).SetConnRemoteIP(remoteIP.String()).SetConnAcceptedTs(time.Now().Unix()).SetSlideWindow(slideWindow)
+	stratumContext.LocalIP = localIP.String()
+	stratumContext.RemoteIP = remoteIP.String()
+	stratumContext.AcceptedTs = time.Now().Unix()
+	stratumContext.SlideWindow = slideWindow
 	contextSet.SetContext(sid, stratumContext)
 	log.WithFields(log.Fields{
 		"sid":       sid,
@@ -35,9 +38,9 @@ func Closed(s *server.Server, ev cellnet.Event) {
 	sid := ev.Session().ID()
 	stratumContext, ok := contextSet.GetContext(sid)
 	if ok {
-		stratumContext.(*context.StratumContext).SetConnClosedTs(time.Now().Unix()).Close()
-		stratumContext.(*context.StratumContext).CancelContext()
-		stratumContext.(*context.StratumContext).GetSlideWindow().Stop()
+		stratumContext.(*context.StratumContext).ClosedTs = time.Now().Unix()
+		stratumContext.(*context.StratumContext).CancelFunc()
+		stratumContext.(*context.StratumContext).SlideWindow.Stop()
 		contextSet.SetContext(sid, nil)
 	}
 
