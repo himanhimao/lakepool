@@ -228,7 +228,7 @@ func main() {
 			Category: "core",
 			Before:   bootstrap,
 			Action: func(c *cli.Context) {
-				log.Infoln("sphere  server start")
+				log.Infoln("sphere  server start,  port:", serverConfig.Port)
 				lis, err := net.Listen("tcp", serverConfig.FormatHostPort())
 				if err != nil {
 					log.WithFields(log.Fields{
