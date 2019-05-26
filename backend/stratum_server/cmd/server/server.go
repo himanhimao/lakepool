@@ -116,7 +116,7 @@ func main() {
 			Name:        "stratum_subscribe_notify_placeholder, ssnp",
 			Value:       "ae6812eb4cd7735a302a8a9dd95cf71f",
 			Usage:       "stratum subscribe notify placeholder",
-			EnvVar:      "STRATUM_DEFAULT_NOTIFY_PLACEHOLDER",
+			EnvVar:      "STRATUM_SUBSCRIBE_NOTIFY_PLACEHOLDER",
 			Destination: &stratumConfig.NotifyPlaceholder,
 		},
 		cli.StringFlag{
@@ -231,14 +231,14 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:        "stratum_log_grpc_server_host",
-			EnvVar:      "STRATUM_STATS_GRPC_SERVER_HOST",
+			EnvVar:      "STRATUM_LOG_GRPC_SERVER_HOST",
 			Value:       "localhost",
 			Usage:       "stratum_log_grpc_server_host",
 			Destination: &logGRPCConfig.Host,
 		},
 		cli.IntFlag{
 			Name:        "stratum_log_grpc_server_port",
-			EnvVar:      "STRATUM_STATS_GRPC_SERVER_PORT",
+			EnvVar:      "STRATUM_LOG_GRPC_SERVER_PORT",
 			Value:       8081,
 			Usage:       "stratum_log_grpc_server_port",
 			Destination: &logGRPCConfig.Port,
