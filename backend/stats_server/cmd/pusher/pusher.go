@@ -116,7 +116,7 @@ func main() {
 		},
 		cli.DurationFlag{
 			Name:        "read_interval, ri",
-			Value:       5,
+			Value:       time.Second * 5,
 			Usage:       "read interval(second.)",
 			EnvVar:      "STATS_PUSHER_READ_INTERVAL",
 			Destination: &pusherConfig.ReadInterval,
