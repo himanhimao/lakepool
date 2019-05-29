@@ -1,0 +1,11 @@
+apiVersion: v1
+data:
+  coin_type: BTC
+  mode: dev
+  per_size: "200"
+  read_interval: 5s
+kind: ConfigMap
+metadata:
+  name: stats-pusher1-configmap
+  namespace: stratum
+

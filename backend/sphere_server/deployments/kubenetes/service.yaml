@@ -1,0 +1,11 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: lakepool-backend-sphere-server-service
+  namespace: sphere
+spec:
+  selector:
+    run: lakepool-backend-sphere-server
+  ports:
+    - protocol: TCP
+      port: 8888

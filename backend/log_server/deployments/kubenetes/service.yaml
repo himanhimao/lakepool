@@ -1,0 +1,11 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: lakepool-backend-log-server-service
+  namespace: log
+spec:
+  selector:
+    run: lakepool-backend-log-server
+  ports:
+    - protocol: TCP
+      port: 8082

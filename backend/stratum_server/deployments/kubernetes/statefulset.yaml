@@ -1,4 +1,4 @@
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1beta1
 kind: StatefulSet
 metadata:
   name: lakepool-backend-stratum-server-compose
@@ -6,8 +6,7 @@ metadata:
 spec:
   replicas: 1
   revisionHistoryLimit: 10
-  strategy:
-    type: Recreate
+  serviceName: stratum
   template:
     metadata:
       labels:
@@ -17,7 +16,7 @@ spec:
         - args:
           - stats-server
           - run
-          name: lakepool-backend-stratum-stats-server
+          name: stats-server
           image: asia.gcr.io/lakepool/backend_stats_server:latest
           imagePullPolicy: Always
           env:
@@ -87,11 +86,17 @@ spec:
                 name: stats-server1-configmap
                 key: store_queues_num
                 optional: true
+          - name: STATS_PACKET_POINTS_NUM
+            valueFrom:
+              configMapKeyRef:
+                name: stats-server1-configmap
+                key: pack_points_num
+                optional: true
         - args:
           - stats-pusher
           - run
-          name: lakepool-backend-stratum-stats-pusher
-          image: asia.gcr.io/lakepool/backend_stats_pusher:latest
+          name: stats-pusher
+          image: asia.gcr.io/lakepool/backend_stats_server:latest
           imagePullPolicy: Always
           env:
           - name: STATS_PUSHER_CLIENT_MODE
@@ -106,7 +111,233 @@ spec:
                 name: stats-pusher1-configmap
                 key: coin_type
                 optional: false
-          -
+          - name: STATS_PUSHER_READ_INTERVAL
+            valueFrom:
+              configMapKeyRef:
+                name: stats-pusher1-configmap
+                key: read_interval
+                optional: true
+          - name: STATS_PUSHER_PER_SIZE
+            valueFrom:
+              configMapKeyRef:
+                name: stats-pusher1-configmap
+                key: per_size
+                optional: true
+          - name: STATS_PUSHER_DB_ADDR
+            valueFrom:
+              secretKeyRef:
+                name: stats-db1-secret
+                key: addr
+                optional: true
+          - name: STATS_PUSHER_DB_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: stats-db1-secret
+                key: username
+                optional: false
+          - name: STATS_PUSHER_DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: stats-db1-secret
+                key: password
+                optional: false
+          - name: STATS_PUSHER_DB_DATABASE
+            valueFrom:
+              secretKeyRef:
+                name: stats-db1-secret
+                key: database
+                optional: false
+          - name: STATS_PUSHER_LOG_SERVER_GRPC_HOST
+            valueFrom:
+              secretKeyRef:
+                name: common-log-server-secret
+                key: host
+                optional: false
+          - name: STATS_PUSHER_LOG_SERVER_GRPC_PORT
+            valueFrom:
+              secretKeyRef:
+                name: common-log-server-secret
+                key: port
+                optional: false
+        - args:
+          - stratum-server
+          - run
+          name: stratum-server
+          image: asia.gcr.io/lakepool/backend_stratum_server:latest
+          imagePullPolicy: Always
+          env:
+            - name: STRATUM_SERVER_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: stratum-server1-configmap
+                  key: host
+                  optional: false
+            - name: STRATUM_SERVER_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: stratum-server1-configmap
+                  key: port
+                  optional: false
+            - name: STRATUM_SERVER_MODE
+              valueFrom:
+                configMapKeyRef:
+                  name: stratum-server1-configmap
+                  key: mode
+                  optional: true
+            - name: STRATUM_MIN_DIFFICULTY
+              valueFrom:
+                configMapKeyRef:
+                  name: stratum-server1-configmap
+                  key: min_difficulty
+                  optional: true
+            - name: STRATUM_MAX_DIFFICULTY
+              valueFrom:
+                configMapKeyRef:
+                  name: stratum-server1-configmap
+                  key: max_difficulty
+                  optional: true
+            - name: STRATUM_DEFAULT_DIFFICULTY_FILE_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: stratum-server1-configmap
+                  key: default_difficulty_file_path
+                  optional: false
+            - name: STRATUM_SUBSCRIBE_NOTIFY_PLACEHOLDER
+              valueFrom:
+                configMapKeyRef:
+                  name: stratum-server1-configmap
+                  key: subscribe_notify_placeholder
+                  optional: true
+            - name: STRATUM_SUBSCRIBE_DIFFICULTY_PLACEHOLDER
+              valueFrom:
+                configMapKeyRef:
+                  name: stratum-server1-configmap
+                  key: subscribe_difficulty_placeholder
+                  optional: true
+            - name: STRATUM_SUBSCRIBE_EXTRA_NONCE1_LENGTH
+              valueFrom:
+                configMapKeyRef:
+                  name: stratum-server1-configmap
+                  key: subscribe_extra_nonce1_length
+                  optional: true
+            - name: STRATUM_SUBSCRIBE_EXTRA_NONCE2_LENGTH
+              valueFrom:
+                configMapKeyRef:
+                  name: stratum-server1-configmap
+                  key: subscribe_extra_nonce2_length
+                  optional: true
+            - name: STRATUM_AUTHORIZE_SKIP_VERIFY
+              valueFrom:
+                configMapKeyRef:
+                  name: stratum-server1-configmap
+                  key: authorize_skip_verify
+                  optional: false
+            - name: STRATUM_AUTHORIZE_NAME_SEPARATOR
+              valueFrom:
+                configMapKeyRef:
+                  name: stratum-server1-configmap
+                  key: authorize_name_separator
+                  optional: true
+            - name: STRATUM_NOTIFY_COIN_TYPE
+              valueFrom:
+                configMapKeyRef:
+                  name: stratum-server1-configmap
+                  key: notify_coin_type
+                  optional: false
+            - name: STRATUM_NOTIFY_COIN_TAG
+              valueFrom:
+                configMapKeyRef:
+                  name: stratum-server1-configmap
+                  key: notify_coin_tag
+                  optional: false
+            - name: STRATUM_NOTIFY_PAYOUT_ADDRESS
+              valueFrom:
+                configMapKeyRef:
+                  name: stratum-server1-configmap
+                  key: notify_payout_address
+                  optional: false
+            - name: STRATUM_NOTIFY_LOOP_INTERVAL
+              valueFrom:
+                configMapKeyRef:
+                  name: stratum-server1-configmap
+                  key: notify_loop_interval
+                  optional: true
+            - name: STRATUM_IS_USED_TEST_NET
+              valueFrom:
+                configMapKeyRef:
+                  name: stratum-server1-configmap
+                  key: is_used_test_net
+                  optional: true
+            - name: STRATUM_DIFFICULTY_CHECK_LOOP_INTERVAL
+              valueFrom:
+                configMapKeyRef:
+                  name: stratum-server1-configmap
+                  key: difficulty_check_loop_interval
+                  optional: true
+            - name: STRATUM_JOB_HASH_CHECK_LOOP_INTERVAL
+              valueFrom:
+                configMapKeyRef:
+                  name: stratum-server1-configmap
+                  key: job_hash_check_loop_interval
+                  optional: true
+            - name: STRATUM_SPHERE_GRPC_SERVER_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: common-sphere-server-secret
+                  key: host
+                  optional: false
+            - name: STRATUM_SPHERE_GRPC_SERVER_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: common-sphere-server-secret
+                  key: port
+                  optional: false
+            - name: STRATUM_STATS_GRPC_SERVER_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: stats-server1-secret
+                  key: host
+                  optional: false
+            - name: STRATUM_STATS_GRPC_SERVER_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: stats-server1-secret
+                  key: port
+                  optional: false
+            - name: STRATUM_LOG_GRPC_SERVER_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: common-log-server-secret
+                  key: host
+                  optional: false
+            - name: STRATUM_LOG_GRPC_SERVER_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: common-log-server-secret
+                  key: port
+                  optional: false
+          volumeMounts:
+            - name: default-difficulty-config
+              mountPath: /etc/stratum_server/default-difficulty.yaml
+              subPath: default_difficulty.yaml
+      volumes:
+        - name: default-difficulty-config
+          configMap:
+            name: default-difficulty
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

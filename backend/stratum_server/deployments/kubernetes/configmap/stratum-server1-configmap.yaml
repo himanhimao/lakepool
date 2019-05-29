@@ -1,0 +1,15 @@
+apiVersion: v1
+data:
+  authorize_skip_verify: "true"
+  default_difficulty_file_path: /etc/stratum_server/default-difficulty.yaml
+  host: 0.0.0.0
+  mode: dev
+  notify_coin_tag: /lakepool/
+  notify_coin_type: BTC
+  notify_payout_address: 1K3kCJFD2PYF99t2eBSQ3stmdA1jrp7Nyf
+  port: "443"
+kind: ConfigMap
+metadata:
+  name: stratum-server1-configmap
+  namespace: stratum
+

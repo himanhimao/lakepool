@@ -1,0 +1,12 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: lakepool-backend-stratum-server-compose-service
+  namespace: stratum
+spec:
+  selector:
+    run: lakepool-backend-stratum-server-compose
+  ports:
+    - protocol: TCP
+      port: 443
+  type: LoadBalancer
