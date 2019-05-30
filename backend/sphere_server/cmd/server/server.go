@@ -174,7 +174,7 @@ func main() {
 		cli.DurationFlag{
 			Name:        "btc_job_cache_expire_ts",
 			Usage:       "job cache expire ts(s)",
-			Value:       time.Second * 7200,
+			Value:       time.Second * 60 * 10,
 			EnvVar:      "SPHERE_BTC_JOB_CACHE_EXPIRE_TS",
 			Destination: &btcCoinConfig.JobCacheExpireTs,
 		},
