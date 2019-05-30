@@ -298,7 +298,7 @@ func (s *SphereServer) Subscribe(in *pb.GetLatestStratumJobRequest, stream pb.Sp
 					st := status.New(codes.Internal, err.Error())
 					return st.Err()
 				}
-				stream.Send(&pb.GetLatestStratumJobResponse{Job: tmpJobPart.ToPBStratumJob()})
+				stream.Send(&pb.GetLatestStratumJobResponse{Job: stratumJobPart.ToPBStratumJob()})
 			}
 		case <-pullGBTTicker.C:
 			tmpJobPart, tmpBlockTransactionParts, err = coinService.GetLatestStratumJob(registerId, register)
