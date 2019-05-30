@@ -109,7 +109,7 @@ func (s *SphereServer) GetLatestStratumJob(ctx context.Context, in *pb.GetLatest
 
 	cacheService = s.Mgr.GetCacheService()
 	jobKey := service.GenJobKey(registerId, stratumJobPart.Meta.Height, stratumJobPart.Meta.CurTimeTs)
-	jobCacheExpireTs := s.Conf.Configs[register.CoinType].JobCacheExpireTs
+	jobCacheExpireTs := s.Conf.Configs[register.CoinType].JobCacheExpireTs.Seconds()
 	if cacheService == nil {
 		st := status.New(codes.Internal, "Abnormal - cache service")
 		return nil, st.Err()

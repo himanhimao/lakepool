@@ -111,6 +111,6 @@ spec:
           - name: SPHERE_BTC_JOB_CACHE_EXPIRE_TS
             valueFrom:
               configMapKeyRef:
-                name: sphere-btc-btcconfigmap
+                name: sphere-btc-configmap
                 key: job_cache_notify_interval
                 optional: true
