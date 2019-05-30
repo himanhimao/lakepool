@@ -136,7 +136,7 @@ func main() {
 		cli.IntFlag{
 			Name:        "redis_pool_max_idle",
 			Usage:       "redis pool max idle",
-			Value:       0,
+			Value:       100,
 			EnvVar:      "SPHERE_REDIS_POOL_MAX_IDLE",
 			Hidden:      true,
 			Destination: &redisConfig.MaxIdle,
