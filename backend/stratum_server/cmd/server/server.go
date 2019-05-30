@@ -67,7 +67,7 @@ func main() {
 			Name:        "server_port, sp",
 			Value:       18801,
 			Usage:       "server port",
-			EnvVar:      "STRATUM_SERVER_LISTEN_PORT",
+			EnvVar:      "STRATUM_SERVER_PORT",
 			Destination: &serverConfig.Port,
 		},
 		cli.StringFlag{
