@@ -1,8 +1,8 @@
 package service
 
 import (
-	"math/big"
 	pb "github.com/himanhimao/lakepool_proto/backend/proto_sphere"
+	"math/big"
 )
 
 type CoinService interface {
@@ -13,6 +13,7 @@ type CoinService interface {
 	IsSolveHash(hash string, targetDifficulty *big.Int) (bool, error)
 	GetTargetDifficulty(bits string) (*big.Int, error)
 	CalculateShareComputePower(difficulty *big.Int) (*big.Int, error)
+	GetNewBlockHeight() (int, error)
 }
 
 type Block struct {
@@ -79,7 +80,7 @@ func NewBlock() *Block {
 	return &Block{}
 }
 
-func (job *StratumJobPart)ToPBStratumJob() *pb.StratumJob {
+func (job *StratumJobPart) ToPBStratumJob() *pb.StratumJob {
 	pbStratumJob := new(pb.StratumJob)
 	pbStratumJob.NBits = job.NBits
 	pbStratumJob.PrevHash = job.PrevHash

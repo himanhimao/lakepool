@@ -1,19 +1,20 @@
 package impl
 
 import (
-	pb "github.com/himanhimao/lakepool_proto/backend/proto_sphere"
-	"context"
-	"google.golang.org/grpc/status"
-	"google.golang.org/grpc/codes"
 	"bytes"
-	"strconv"
+	"context"
 	"crypto/md5"
 	"fmt"
-	"sync"
-	"github.com/himanhimao/lakepool/backend/sphere_server/internal/pkg/service"
 	"github.com/himanhimao/lakepool/backend/sphere_server/internal/pkg/conf"
-	"time"
+	"github.com/himanhimao/lakepool/backend/sphere_server/internal/pkg/service"
+	pb "github.com/himanhimao/lakepool_proto/backend/proto_sphere"
+	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"math/big"
+	"strconv"
+	"sync"
+	"time"
 )
 
 const (
@@ -280,45 +281,64 @@ func (s *SphereServer) Subscribe(in *pb.GetLatestStratumJobRequest, stream pb.Sp
 	notifyTicker := time.NewTicker(notifyInterval)
 	pullGBTTicker := time.NewTicker(pullGBTInterval)
 
+	var currentBlockHeight int
 	var stratumJobPart *service.StratumJobPart
 	var blockTransactions []*service.BlockTransactionPart
-	var tmpJobPart *service.StratumJobPart
-	var tmpBlockTransactionParts []*service.BlockTransactionPart
+	notifyChan := make(chan bool, 1)
 	jobCacheExpireTs := int(s.Conf.Configs[register.CoinType].JobCacheExpireTs.Seconds())
 
 	for {
 		select {
 		case <-stream.Context().Done():
+			log.Debugln("stream context done")
 			goto Out
 		case <-notifyTicker.C:
-			if stratumJobPart != nil {
-				jobKey := service.GenJobKey(registerId, stratumJobPart.Meta.Height, stratumJobPart.Meta.CurTimeTs)
-				err = cacheService.SetBlockTransactions(jobKey, jobCacheExpireTs, blockTransactions)
-				if err != nil {
-					st := status.New(codes.Internal, err.Error())
-					return st.Err()
-				}
-				stream.Send(&pb.GetLatestStratumJobResponse{Job: stratumJobPart.ToPBStratumJob()})
-			}
-		case <-pullGBTTicker.C:
-			tmpJobPart, tmpBlockTransactionParts, err = coinService.GetLatestStratumJob(registerId, register)
+		case <-notifyChan:
+			stratumJobPart, blockTransactions, err = coinService.GetLatestStratumJob(registerId, register)
 			if err != nil {
+				log.WithFields(log.Fields{
+					"error": err,
+					"register_id": registerId,
+					"coinType": register.CoinType,
+				}).Errorln("get latest stratum job error")
 				break
 			}
-			if stratumJobPart != nil {
-				if stratumJobPart.Meta.Height != tmpJobPart.Meta.Height {
-					jobKey := service.GenJobKey(registerId, tmpJobPart.Meta.Height, tmpJobPart.Meta.CurTimeTs)
-					err = cacheService.SetBlockTransactions(jobKey, jobCacheExpireTs, tmpBlockTransactionParts)
-					if err != nil {
-						st := status.New(codes.Internal, err.Error())
-						return st.Err()
-					}
-					stream.Send(&pb.GetLatestStratumJobResponse{Job: tmpJobPart.ToPBStratumJob()})
-					break
-				}
+
+			jobKey := service.GenJobKey(registerId, stratumJobPart.Meta.Height, stratumJobPart.Meta.CurTimeTs)
+			err = cacheService.SetBlockTransactions(jobKey, jobCacheExpireTs, blockTransactions)
+			if err != nil {
+				log.WithFields(log.Fields{
+					"error": err,
+					"register_id": registerId,
+					"coinType": register.CoinType,
+				}).Errorln("set block transactions error")
+				break
 			}
-			stratumJobPart = tmpJobPart
-			blockTransactions = tmpBlockTransactionParts
+			stream.Send(&pb.GetLatestStratumJobResponse{Job: stratumJobPart.ToPBStratumJob()})
+			log.WithFields(log.Fields{
+				"block_height": stratumJobPart.Meta.Height,
+				"register_id": registerId,
+				"coinType": register.CoinType,
+			}).Infoln("job has been sent")
+		case <-pullGBTTicker.C:
+			newBlockHeigt, err :=  coinService.GetNewBlockHeight()
+			if err != nil {
+				log.WithFields(log.Fields{
+					"error": err,
+					"register_id": registerId,
+					"coinType": register.CoinType,
+				}).Errorln("get new block height  error")
+				break
+			}
+			if newBlockHeigt != currentBlockHeight {
+				currentBlockHeight = newBlockHeigt
+				notifyChan<-true
+				log.WithFields(log.Fields{
+					"block_height": newBlockHeigt,
+					"register_id": registerId,
+					"coinType": register.CoinType,
+				}).Infoln("new block height")
+			}
 		}
 	}
 Out:
@@ -421,7 +441,6 @@ func (s *SphereServer) fetchRegisterContext(registerKey service.RegisterKey) (*s
 	}
 	return s.Mgr.GetCacheService().GetRegisterContext(registerKey)
 }
-
 
 func splitServiceParts(share *pb.StratumShare) (*service.BlockHeaderPart, *service.BlockCoinBasePart) {
 	coinBasePart := service.NewBlockCoinBasePart()

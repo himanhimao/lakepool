@@ -271,3 +271,12 @@ func (c *BTCCoin) CalculateShareComputePower(targetDifficulty *big.Int) (*big.In
 	baseDifficultyBig := new(big.Int).SetUint64(BaseDifficulty)
 	return new(big.Int).Mul(baseDifficultyBig, targetDifficulty), nil
 }
+
+
+func (c *BTCCoin) GetNewBlockHeight() (int, error) {
+	miningInfo, err := c.rpcClient.GetMiningInfo()
+	if err != nil {
+		return 0, err
+	}
+	return miningInfo.Blocks + 1, nil
+}
