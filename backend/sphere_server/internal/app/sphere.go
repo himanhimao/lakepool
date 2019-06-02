@@ -280,26 +280,27 @@ func (s *SphereServer) Subscribe(in *pb.GetLatestStratumJobRequest, stream pb.Sp
 	notifyInterval := s.Conf.Configs[register.CoinType].NotifyInterval
 	notifyTicker := time.NewTicker(notifyInterval)
 	pullGBTTicker := time.NewTicker(pullGBTInterval)
-
 	var currentBlockHeight int
 	var stratumJobPart *service.StratumJobPart
 	var blockTransactions []*service.BlockTransactionPart
 	notifyChan := make(chan bool, 1)
 	jobCacheExpireTs := int(s.Conf.Configs[register.CoinType].JobCacheExpireTs.Seconds())
 
+	log.Infoln("pull GBT interval: ", pullGBTInterval.Seconds(), "notify interval: ", notifyInterval.Seconds())
 	for {
 		select {
 		case <-stream.Context().Done():
 			log.Debugln("stream context done")
 			goto Out
 		case <-notifyTicker.C:
+			notifyChan <- true
 		case <-notifyChan:
 			stratumJobPart, blockTransactions, err = coinService.GetLatestStratumJob(registerId, register)
 			if err != nil {
 				log.WithFields(log.Fields{
-					"error": err,
+					"error":       err,
 					"register_id": registerId,
-					"coinType": register.CoinType,
+					"coinType":    register.CoinType,
 				}).Errorln("get latest stratum job error")
 				break
 			}
@@ -308,36 +309,37 @@ func (s *SphereServer) Subscribe(in *pb.GetLatestStratumJobRequest, stream pb.Sp
 			err = cacheService.SetBlockTransactions(jobKey, jobCacheExpireTs, blockTransactions)
 			if err != nil {
 				log.WithFields(log.Fields{
-					"error": err,
+					"error":       err,
 					"register_id": registerId,
-					"coinType": register.CoinType,
+					"coinType":    register.CoinType,
 				}).Errorln("set block transactions error")
 				break
 			}
 			stream.Send(&pb.GetLatestStratumJobResponse{Job: stratumJobPart.ToPBStratumJob()})
 			log.WithFields(log.Fields{
 				"block_height": stratumJobPart.Meta.Height,
-				"register_id": registerId,
-				"coinType": register.CoinType,
+				"register_id":  registerId,
+				"coinType":     register.CoinType,
 			}).Infoln("job has been sent")
 		case <-pullGBTTicker.C:
-			newBlockHeigt, err :=  coinService.GetNewBlockHeight()
+			newBlockHeight, err := coinService.GetNewBlockHeight()
 			if err != nil {
 				log.WithFields(log.Fields{
-					"error": err,
+					"error":       err,
 					"register_id": registerId,
-					"coinType": register.CoinType,
+					"coinType":    register.CoinType,
 				}).Errorln("get new block height  error")
 				break
 			}
-			if newBlockHeigt != currentBlockHeight {
-				currentBlockHeight = newBlockHeigt
-				notifyChan<-true
+			if newBlockHeight != currentBlockHeight {
 				log.WithFields(log.Fields{
-					"block_height": newBlockHeigt,
-					"register_id": registerId,
-					"coinType": register.CoinType,
+					"new_block_height": newBlockHeight,
+					"cur_block_height": currentBlockHeight,
+					"register_id":      registerId,
+					"coinType":         register.CoinType,
 				}).Infoln("new block height")
+				currentBlockHeight = newBlockHeight
+				notifyChan <- true
 			}
 		}
 	}
