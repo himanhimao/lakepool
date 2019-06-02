@@ -107,17 +107,17 @@ func (s *Server) Init() error {
 	}
 
 	go s.sMgr.GetSphereService().Subscribe(s.ctx, func(job *service.StratumJob) {
-		log.Debugln("subscribe job:", job.Meta.Height, job.Meta.CurTimeTs)
 		if s.jobRepo.GetLatestHeight() != job.Meta.Height {
 			if _, err := s.sMgr.GetSphereService().ClearShareHistory(s.jobRepo.GetLatestHeight()); err != nil {
 				log.Warnln("clear share history error.", err)
 			}
-			index := s.jobRepo.SetJob(job.Meta.Height, job)
-			log.WithFields(log.Fields{
-				"height": job.Meta.Height,
-				"index":  index,
-			}).Infoln("subscribe new job")
 		}
+		index := s.jobRepo.SetJob(job.Meta.Height, job)
+		log.WithFields(log.Fields{
+			"height": job.Meta.Height,
+			"index":  index,
+			"timestamp": job.Meta.CurTimeTs,
+		}).Infoln("subscribe new job")
 	})
 	return nil
 }
