@@ -1,24 +1,23 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/davyxu/cellnet"
 	_ "github.com/davyxu/cellnet/codec/json"
 	"github.com/davyxu/cellnet/peer"
 	"github.com/davyxu/cellnet/proc"
-	log "github.com/sirupsen/logrus"
 	_ "github.com/himanhimao/lakepool/backend/stratum_server/internal/pkg/cellnet/peer/tcp"
 	_ "github.com/himanhimao/lakepool/backend/stratum_server/internal/pkg/cellnet/proc/tcp"
 	"github.com/himanhimao/lakepool/backend/stratum_server/internal/pkg/cellnet/proto"
 	_ "github.com/himanhimao/lakepool/backend/stratum_server/internal/pkg/cellnet/proto"
 	"github.com/himanhimao/lakepool/backend/stratum_server/internal/pkg/conf"
 	"github.com/himanhimao/lakepool/backend/stratum_server/internal/pkg/service"
+	log "github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
 	"syscall"
-	"context"
 )
-
 
 type RouterHandler func(*Server, cellnet.Event)
 
@@ -43,14 +42,13 @@ func (s *Server) GetServiceMgr() *service.Manager {
 	return s.sMgr
 }
 
-func (s *Server) GetJobRepo() *JobRepo{
+func (s *Server) GetJobRepo() *JobRepo {
 	return s.jobRepo
 }
 
-func (s *Server) GetSysInfo() *service.SysInfo{
+func (s *Server) GetSysInfo() *service.SysInfo {
 	return s.sysInfo
 }
-
 
 func NewRouter(size int) *Router {
 	var table map[string]RouterHandler
@@ -111,11 +109,14 @@ func (s *Server) Init() error {
 	go s.sMgr.GetSphereService().Subscribe(s.ctx, func(job *service.StratumJob) {
 		log.Debugln("subscribe job:", job.Meta.Height, job.Meta.CurTimeTs)
 		if s.jobRepo.GetLatestHeight() != job.Meta.Height {
-			log.Infoln("subscribe new job, height ", job.Meta.Height)
 			if _, err := s.sMgr.GetSphereService().ClearShareHistory(s.jobRepo.GetLatestHeight()); err != nil {
 				log.Warnln("clear share history error.", err)
 			}
-			s.jobRepo.SetJob(job.Meta.Height, job)
+			index := s.jobRepo.SetJob(job.Meta.Height, job)
+			log.WithFields(log.Fields{
+				"height": job.Meta.Height,
+				"index":  index,
+			}).Infoln("subscribe new job")
 		}
 	})
 	return nil

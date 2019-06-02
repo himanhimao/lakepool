@@ -36,14 +36,16 @@ func newJobList() *JobList {
 	return &JobList{0, len(list), list}
 }
 
-func (l *JobList) append(job *service.StratumJob) {
+func (l *JobList) append(job *service.StratumJob) int {
 	if l.index <= l.len-1 {
 		l.list[l.index] = job
 	} else {
 		l.list = append(l.list, job)
 		l.len = len(l.list)
 	}
+	index := l.index
 	l.index++
+	return index
 }
 
 func (l *JobList) Get(index int) *service.StratumJob {
@@ -57,7 +59,8 @@ func (r *JobRepo) GetLatestHeight() int32 {
 	return r.latestHeight
 }
 
-func (r *JobRepo) SetJob(height int32, job *service.StratumJob) {
+func (r *JobRepo) SetJob(height int32, job *service.StratumJob) int {
+	var index int
 	if height > 0 {
 		r.mutex.Lock()
 		var jobList *JobList
@@ -65,7 +68,7 @@ func (r *JobRepo) SetJob(height int32, job *service.StratumJob) {
 			jobList = newJobList()
 			r.jobs[height] = jobList
 		}
-		jobList.append(job)
+		index = jobList.append(job)
 
 		if r.cleanHeight == 0 {
 			r.cleanHeight = height
@@ -73,6 +76,7 @@ func (r *JobRepo) SetJob(height int32, job *service.StratumJob) {
 		r.latestHeight = height
 		r.mutex.Unlock()
 	}
+	return  index
 }
 
 func (r *JobRepo) getJobList(height int32) *JobList {
