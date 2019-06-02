@@ -44,12 +44,12 @@ func JobNotify(s *server.Server, ev cellnet.Event) {
 	newNotifyJobIndex := latestNotifyJobIndex + 1
 	newJob := s.GetJobRepo().GetJob(latestNotifyJobHeight, newNotifyJobIndex)
 	if newJob == nil {
+		//如果未找到任务, return
 		log.WithFields(log.Fields{
 			"sid":         sid,
 			"worker_name": workerName,
 		}).Errorln("jobNotify height not found new job")
 		stratumContext.(*context.StratumContext).NotifyMutex.Unlock()
-		ev.Session().Close()
 		return
 	}
 	jobId := service.GenerateJobId(latestNotifyJobHeight, latestNotifyJobIndex, latestDifficulty)
@@ -64,7 +64,7 @@ func JobNotify(s *server.Server, ev cellnet.Event) {
 
 	log.WithFields(log.Fields{
 		"sid":       sid,
-		"height":    newJob.GetMeta().GetHeight(),
+		"height":    newJob.Meta.Height,
 		"job_index": newNotifyJobIndex,
 	}).Infoln("Sent new job")
 	stratumContext.(*context.StratumContext).NotifyMutex.Unlock()
@@ -189,7 +189,7 @@ func JobHeightCheck(s *server.Server, ev cellnet.Event) {
 		log.WithFields(log.Fields{
 			"sid":         sid,
 			"worker_name": workerName,
-			"height":      newJob.GetMeta().GetHeight(),
+			"height":      newJob.Meta.Height,
 		}).Infoln("Sent a new height job")
 	}
 

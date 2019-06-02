@@ -1,18 +1,19 @@
 package sphere
 
 import (
+	"context"
+	"github.com/himanhimao/lakepool/backend/stratum_server/internal/pkg/conf"
 	"github.com/himanhimao/lakepool/backend/stratum_server/internal/pkg/service"
 	pb "github.com/himanhimao/lakepool_proto/backend/proto_sphere"
-	"context"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
-	"time"
-	"io"
-	"github.com/himanhimao/lakepool/backend/stratum_server/internal/pkg/conf"
 	"google.golang.org/grpc/balancer/roundrobin"
+	"io"
+	"time"
 )
 
 var (
+	RetryNum =  1000
 	ReconnectWaitTime = time.Second * 15
 	Timeout           = time.Second * 30
 )
@@ -64,11 +65,11 @@ func (s *GRPCService) Register(config *service.StratumConfig, sysInfo *service.S
 	defer cancel()
 
 	pbStratumConfig := new(pb.StratumConfig)
-	pbStratumConfig.CoinType = config.GetCoinType()
-	pbStratumConfig.PayoutAddress = config.GetPayoutAddress()
-	pbStratumConfig.PoolTag = config.GetPoolTag()
-	pbStratumConfig.ExtraNonce1Length = int32(config.GetExtraNonce1Length())
-	pbStratumConfig.ExtraNonce2Length = int32(config.GetExtraNonce2Length())
+	pbStratumConfig.CoinType = config.CoinType
+	pbStratumConfig.PayoutAddress = config.PayoutAddress
+	pbStratumConfig.PoolTag = config.PoolTag
+	pbStratumConfig.ExtraNonce1Length = int32(config.ExtraNonce1Length)
+	pbStratumConfig.ExtraNonce2Length = int32(config.ExtraNonce2Length)
 	pbSysInfo := new(pb.SysInfo)
 	pbSysInfo.Hostname, _ = sysInfo.GetHostName()
 	pbSysInfo.Pid = int32(sysInfo.GetPid())
@@ -82,20 +83,27 @@ func (s *GRPCService) Register(config *service.StratumConfig, sysInfo *service.S
 	return nil
 }
 
-func (s *GRPCService) Subscribe(ctx context.Context, handler service.SubscribeHandler) {
+func (s *GRPCService) Subscribe(ctx context.Context, handler service.SubscribeHandler)  {
+	var retryNum int
 	log.Infoln("Subscribing to gbt job")
-	for {
-		getLatestStratumJobRequest := &pb.GetLatestStratumJobRequest{RegisterId: s.registerId}
-		stream, err := s.client.Subscribe(context.Background(), getLatestStratumJobRequest)
-		if err != nil {
-			log.Errorln("subscribe error ", err.Error())
-			time.Sleep(ReconnectWaitTime)
+Retry:
+	getLatestStratumJobRequest := &pb.GetLatestStratumJobRequest{RegisterId: s.registerId}
+	stream, err := s.client.Subscribe(context.Background(), getLatestStratumJobRequest)
+	if err != nil {
+		log.Errorln("subscribe error ", err.Error())
+		time.Sleep(ReconnectWaitTime)
+		if retryNum < RetryNum {
+			goto Retry
+		} else {
+			goto Out
 		}
+	}
+	for {
 		if stream != nil {
 			select {
 			case <-stream.Context().Done():
 				log.Errorln("sphere subscribe server interrupt. try reconnect..")
-				break
+				goto Retry
 			case <-ctx.Done():
 				log.Debugln("subscribe routine cancel.")
 				goto Out
@@ -103,7 +111,7 @@ func (s *GRPCService) Subscribe(ctx context.Context, handler service.SubscribeHa
 				resp, err := stream.Recv()
 				if err == io.EOF {
 					log.Errorln("subscribe error eof.")
-					break
+					goto Retry
 				}
 				if err != nil {
 					log.Errorln(err.Error())
@@ -188,40 +196,39 @@ func loadStratumJob(pbJob *pb.StratumJob) *service.StratumJob {
 	pbJobMeta := pbJob.Meta
 
 	stratumJob := service.NewStratumJob()
-	stratumJob.SetPrevHash(pbJob.PrevHash)
-	stratumJob.SetVersion(pbJob.Version)
-	stratumJob.SetCoinBase1(pbJob.CoinBase1)
-	stratumJob.SetCoinBase2(pbJob.CoinBase2)
-	stratumJob.SetMerkleBranch(pbJob.MerkleBranch)
-	stratumJob.SetNBits(pbJob.NBits)
+	stratumJob.PrevHash = pbJob.PrevHash
+	stratumJob.Version = pbJob.Version
+	stratumJob.CoinBase1 = pbJob.CoinBase1
+	stratumJob.CoinBase2 = pbJob.CoinBase2
+	stratumJob.MerkleBranch = pbJob.MerkleBranch
+	stratumJob.NBits = pbJob.NBits
 
 	stratumJobMeta := new(service.StratumJobMeta)
-	stratumJobMeta.SetHeight(pbJobMeta.Height)
-	stratumJobMeta.SetCurTimeTs(pbJobMeta.CurTimeTs)
-	stratumJobMeta.SetMinTimeTs(pbJobMeta.MinTimeTs)
+	stratumJobMeta.Height = pbJobMeta.Height
+	stratumJobMeta.CurTimeTs = pbJobMeta.CurTimeTs
+	stratumJobMeta.MinTimeTs = pbJobMeta.MinTimeTs
 
-	stratumJob.SetMeta(stratumJobMeta)
+	stratumJob.Meta = stratumJobMeta
 	return stratumJob
 }
 
 func loadPBStratumShare(share *service.StratumShare) *pb.StratumShare {
-	stratumShareMeta := share.GetMeta()
-
+	stratumShareMeta := share.Meta
 	pbStratumShare := new(pb.StratumShare)
-	pbStratumShare.NTime = share.GetNTime()
-	pbStratumShare.ExtraNonce2 = share.GetExtraNonce2()
-	pbStratumShare.ExtraNonce1 = share.GetExtraNonce1()
-	pbStratumShare.CoinBase1 = share.GetCoinBase1()
-	pbStratumShare.CoinBase2 = share.GetCoinBase2()
-	pbStratumShare.PrevHash = share.GetPervHash()
-	pbStratumShare.Nonce = share.GetNonce()
-	pbStratumShare.NTime = share.GetNTime()
-	pbStratumShare.Version = share.GetVersion()
-	pbStratumShare.NBits = share.GetNBits()
+	pbStratumShare.NTime = share.NTime
+	pbStratumShare.ExtraNonce2 = share.ExtraNonce2
+	pbStratumShare.ExtraNonce1 = share.ExtraNonce1
+	pbStratumShare.CoinBase1 = share.CoinBase1
+	pbStratumShare.CoinBase2 = share.CoinBase2
+	pbStratumShare.PrevHash = share.PrevHash
+	pbStratumShare.Nonce = share.Nonce
+	pbStratumShare.NTime = share.NTime
+	pbStratumShare.Version = share.Version
+	pbStratumShare.NBits = share.NBits
 
 	pbStratumShareMeta := new(pb.StratumShareMeta)
-	pbStratumShareMeta.Height = stratumShareMeta.GetHeight()
-	pbStratumShareMeta.CurTimeTs = stratumShareMeta.GetJobCurTs()
+	pbStratumShareMeta.Height = stratumShareMeta.Height
+	pbStratumShareMeta.CurTimeTs = stratumShareMeta.JobCurTs
 	pbStratumShare.Meta = pbStratumShareMeta
 
 	return pbStratumShare

@@ -109,13 +109,13 @@ func (s *Server) Init() error {
 	}
 
 	go s.sMgr.GetSphereService().Subscribe(s.ctx, func(job *service.StratumJob) {
-		log.Debugln("subscribe job:", job.GetMeta().GetHeight(), job.GetMeta().GetCurTimeTs())
-		if s.jobRepo.GetLatestHeight() != job.GetMeta().GetHeight() {
-			log.Infoln("subscribe new job, height ", job.GetMeta().GetHeight())
+		log.Debugln("subscribe job:", job.Meta.Height, job.Meta.CurTimeTs)
+		if s.jobRepo.GetLatestHeight() != job.Meta.Height {
+			log.Infoln("subscribe new job, height ", job.Meta.Height)
 			if _, err := s.sMgr.GetSphereService().ClearShareHistory(s.jobRepo.GetLatestHeight()); err != nil {
 				log.Warnln("clear share history error.", err)
 			}
-			s.jobRepo.SetJob(job.GetMeta().GetHeight(), job)
+			s.jobRepo.SetJob(job.Meta.Height, job)
 		}
 	})
 	return nil
@@ -129,8 +129,11 @@ func (s *Server) registerSphere() error {
 
 	serviceStratumConfig := service.NewStratumConfig()
 	config := s.config.StratumConfig
-	serviceStratumConfig.SetPoolTag(config.PoolTag).SetPayoutAddress(config.PayoutAddress).SetCoinType(config.CoinType).
-		SetExtraNonce2Length(config.StratumSubscribeConfig.ExtraNonce2Length).SetExtraNonce1Length(config.StratumSubscribeConfig.ExtraNonce1Length)
+	serviceStratumConfig.PoolTag = config.PoolTag
+	serviceStratumConfig.PayoutAddress = config.PayoutAddress
+	serviceStratumConfig.CoinType = config.CoinType
+	serviceStratumConfig.ExtraNonce2Length = config.StratumSubscribeConfig.ExtraNonce2Length
+	serviceStratumConfig.ExtraNonce1Length = config.StratumSubscribeConfig.ExtraNonce1Length
 
 	s.sysInfo = service.NewSysInfo()
 	if err = s.sMgr.GetSphereService().Register(serviceStratumConfig, s.sysInfo); err != nil {
@@ -149,8 +152,8 @@ func (s *Server) loadNewJob() error {
 	if err != nil {
 		return err
 	}
-	jobRepo.SetJob(stratumJob.GetMeta().GetHeight(), stratumJob)
-	log.Debugln("init job height", stratumJob.GetMeta().GetHeight())
+	jobRepo.SetJob(stratumJob.Meta.Height, stratumJob)
+	log.Debugln("init job height", stratumJob.Meta.Height)
 	go jobRepo.Clean(s.ctx)
 	return err
 }

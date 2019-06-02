@@ -295,7 +295,7 @@ func Submit(s *server.Server, ev cellnet.Event) {
 		return
 	}
 
-	if s.GetJobRepo().GetLatestHeight() != height || job == nil || uint32(job.GetMeta().GetMinTimeTs()) > nTimeTs {
+	if s.GetJobRepo().GetLatestHeight() != height || job == nil || uint32(job.Meta.MinTimeTs) > nTimeTs {
 		log.WithFields(log.Fields{
 			"sid":         sid,
 			"worker_name": workerName,
@@ -319,7 +319,10 @@ func Submit(s *server.Server, ev cellnet.Event) {
 
 	extraNonce1 := stratumContext.(*context.StratumContext).SessionID
 	share := job.ToShare()
-	share.SetExtraNonce1(extraNonce1).SetExtraNonce2(extraNonce2).SetNTime(nTime).SetNonce(nonce)
+	share.ExtraNonce1 = extraNonce1
+	share.ExtraNonce2 = extraNonce2
+	share.NTime = nTime
+	share.Nonce = nonce
 
 	shareResult, err := s.GetServiceMgr().GetSphereService().SubmitShare(share, difficulty)
 	submitRefuseRESP := proto.NewSubmitRESP(msgId, proto.SubmitRefuse)

@@ -1,18 +1,18 @@
 package service
 
 import (
-	"strconv"
-	"os"
+	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
-	"encoding/hex"
+	"os"
+	"strconv"
 	"strings"
-	"context"
 )
 
 const (
-	SeparatorJobId                        = "_"
-	StateUnknown               ShareState = iota
+	SeparatorJobId            = "_"
+	StateUnknown   ShareState = iota
 	StateSuccess
 	StateSuccessSubmitBlock
 	StateErrDuplicateShare
@@ -35,51 +35,51 @@ type StratumService interface {
 }
 
 type StratumConfig struct {
-	coinType          string
-	poolTag           string
-	payoutAddress     string
-	extraNonce1Length int
-	extraNonce2Length int
+	CoinType          string
+	PoolTag           string
+	PayoutAddress     string
+	ExtraNonce1Length int
+	ExtraNonce2Length int
 }
 
 type StratumJob struct {
-	jobId        string
-	prevHash     string
-	coinBase1    string
-	coinBase2    string
-	merkleBranch []string
-	version      string
-	nBits        string
-	nTime        string
-	cleanJobs    bool
-	meta         *StratumJobMeta
+	JobId        string
+	PrevHash     string
+	CoinBase1    string
+	CoinBase2    string
+	MerkleBranch []string
+	Version      string
+	NBits        string
+	NTime        string
+	CleanJobs    bool
+	Meta         *StratumJobMeta
 }
 
 type StratumJobMeta struct {
-	height    int32
-	minTimeTs int32
-	curTimeTs int32
+	Height    int32
+	MinTimeTs int32
+	CurTimeTs int32
 }
 
 type StratumShareHeader struct {
-	version  string
-	nTime    string
-	nBits    string
-	nonce    string
-	prevHash string
+	Version  string
+	NTime    string
+	NBits    string
+	Nonce    string
+	PrevHash string
 }
 
 type StratumShareCoinBase struct {
-	extraNonce1 string
-	extraNonce2 string
-	coinBase1   string
-	coinBase2   string
+	ExtraNonce1 string
+	ExtraNonce2 string
+	CoinBase1   string
+	CoinBase2   string
 }
 
 type StratumShare struct {
 	StratumShareHeader
 	StratumShareCoinBase
-	meta *StratumShareMeta
+	Meta *StratumShareMeta
 }
 
 type ShareState int
@@ -151,288 +151,43 @@ func (ctx *SysInfo) GetHostName() (string, error) {
 }
 
 func (job *StratumJob) Fill(jobId string, ts int64, cleanJobs bool) *StratumJob {
-	job.cleanJobs = cleanJobs
-	job.nTime = strconv.FormatInt(ts, 16)
-	job.jobId = jobId
+	job.CleanJobs = cleanJobs
+	job.NTime = strconv.FormatInt(ts, 16)
+	job.JobId = jobId
 	return job
 }
 
 func (job *StratumJob) ToJSONInterface() ([]interface{}) {
 	obj := make([]interface{}, 9)
-	obj[0] = job.jobId
-	obj[1] = job.prevHash
-	obj[2] = job.coinBase1
-	obj[3] = job.coinBase2
-	obj[4] = job.merkleBranch
-	obj[5] = job.version
-	obj[6] = job.nBits
-	obj[7] = job.nTime
-	obj[8] = job.cleanJobs
+	obj[0] = job.JobId
+	obj[1] = job.PrevHash
+	obj[2] = job.CoinBase1
+	obj[3] = job.CoinBase2
+	obj[4] = job.MerkleBranch
+	obj[5] = job.Version
+	obj[6] = job.NBits
+	obj[7] = job.NTime
+	obj[8] = job.CleanJobs
 	return obj
 
 }
 
 func (job *StratumJob) ToShare() *StratumShare {
-	share := NewStratumShare().SetCoinBase1(job.GetCoinBase1()).SetCoinBase2(job.GetCoinBase2()).SetNBits(job.GetNBits()).
-		SetPervHash(job.GetPrevHash()).SetVersion(job.GetVersion())
-	meta := NewStratumShareMeta().SetJobCurTs(job.GetMeta().GetCurTimeTs()).SetHeight(job.GetMeta().GetHeight())
-	share.SetMeta(meta)
+	share := NewStratumShare()
+	share.CoinBase1 = job.CoinBase1
+	share.CoinBase2 = job.CoinBase2
+	share.NBits = job.NBits
+	share.PrevHash = job.PrevHash
+	share.Version =job.Version
+	meta := NewStratumShareMeta()
+	meta.JobCurTs = job.Meta.CurTimeTs
+	meta.Height = job.Meta.Height
+	share.Meta = meta
 	return share
 }
 
 func NewStratumConfig() *StratumConfig {
 	return &StratumConfig{}
-}
-
-func (job *StratumJob) Resolve(num int) ([]*StratumJob, int) {
-	return nil, 0
-}
-
-func (job *StratumJob) GetJobId() string {
-	return job.jobId
-}
-
-func (job *StratumJob) GetPrevHash() string {
-	return job.prevHash
-}
-
-func (job *StratumJob) GetCoinBase1() string {
-	return job.coinBase1
-}
-
-func (job *StratumJob) GetCoinBase2() string {
-	return job.coinBase2
-}
-
-func (job *StratumJob) GetMerkleBranch() []string {
-	return job.merkleBranch
-}
-
-func (job *StratumJob) GetVersion() string {
-	return job.version
-}
-
-func (job *StratumJob) GetNBits() string {
-	return job.nBits
-}
-
-func (job *StratumJob) GetNTime() string {
-	return job.nTime
-}
-
-func (job *StratumJob) GetMeta() *StratumJobMeta {
-	return job.meta
-}
-
-func (job *StratumJob) IsCleanJobs() bool {
-	return job.cleanJobs
-}
-
-func (meta *StratumJobMeta) GetHeight() int32 {
-	return meta.height
-}
-
-func (meta *StratumJobMeta) GetMinTimeTs() int32 {
-	return meta.minTimeTs
-}
-
-func (meta *StratumJobMeta) GetCurTimeTs() int32 {
-	return meta.curTimeTs
-}
-
-func (job *StratumJob) SetPrevHash(prevHash string) *StratumJob {
-	job.prevHash = prevHash
-	return job
-}
-
-func (job *StratumJob) SetCoinBase1(coinbase1 string) *StratumJob {
-	job.coinBase1 = coinbase1
-	return job
-}
-
-func (job *StratumJob) SetCoinBase2(coinbase2 string) *StratumJob {
-	job.coinBase2 = coinbase2
-	return job
-}
-
-func (job *StratumJob) SetMerkleBranch(merkleBranch []string) *StratumJob {
-	job.merkleBranch = merkleBranch
-	return job
-}
-
-func (job *StratumJob) SetVersion(version string) *StratumJob {
-	job.version = version
-	return job
-}
-
-func (job *StratumJob) SetNBits(nBits string) *StratumJob {
-	job.nBits = nBits
-	return job
-}
-
-func (s *StratumShare) GetVersion() string {
-	return s.version
-}
-
-func (s *StratumShare) GetExtraNonce1() string {
-	return s.extraNonce1
-}
-
-func (s *StratumShare) GetExtraNonce2() string {
-	return s.extraNonce2
-}
-
-func (s *StratumShare) GetNTime() string {
-	return s.nTime
-}
-
-func (s *StratumShare) GetNBits() string {
-	return s.nBits
-}
-
-func (s *StratumShare) GetNonce() string {
-	return s.nonce
-}
-
-func (s *StratumShare) GetPervHash() string {
-	return s.prevHash
-}
-
-func (s *StratumShare) GetCoinBase1() string {
-	return s.coinBase1
-}
-
-func (s *StratumShare) GetCoinBase2() string {
-	return s.coinBase2
-}
-
-func (s *StratumShare) GetMeta() *StratumShareMeta {
-	return s.meta
-}
-
-func (job *StratumJob) SetMeta(meta *StratumJobMeta) *StratumJob {
-	job.meta = meta
-	return job
-}
-
-func (meta *StratumJobMeta) SetHeight(height int32) *StratumJobMeta {
-	meta.height = height
-	return meta
-}
-
-func (meta *StratumJobMeta) SetCurTimeTs(curTimeTs int32) *StratumJobMeta {
-	meta.curTimeTs = curTimeTs
-	return meta
-}
-
-func (meta *StratumJobMeta) SetMinTimeTs(minTimeTs int32) *StratumJobMeta {
-	meta.minTimeTs = minTimeTs
-	return meta
-}
-
-func (conf *StratumConfig) SetPoolTag(coinTag string) *StratumConfig {
-	conf.poolTag = coinTag
-	return conf
-}
-
-func (conf *StratumConfig) SetPayoutAddress(payoutAddress string) *StratumConfig {
-	conf.payoutAddress = payoutAddress
-	return conf
-}
-
-func (conf *StratumConfig) SetCoinType(coinType string) *StratumConfig {
-	conf.coinType = coinType
-	return conf
-}
-
-func (conf *StratumConfig) SetExtraNonce1Length(length int) *StratumConfig {
-	conf.extraNonce1Length = length
-	return conf
-}
-
-func (conf *StratumConfig) SetExtraNonce2Length(length int) *StratumConfig {
-	conf.extraNonce2Length = length
-	return conf
-}
-
-func (conf *StratumConfig) GetPoolTag() string {
-	return conf.poolTag
-}
-
-func (conf *StratumConfig) GetPayoutAddress() string {
-	return conf.payoutAddress
-}
-
-func (conf *StratumConfig) GetExtraNonce1Length() int {
-	return conf.extraNonce1Length
-}
-
-func (conf *StratumConfig) GetExtraNonce2Length() int {
-	return conf.extraNonce2Length
-}
-
-func (conf *StratumConfig) GetCoinType() string {
-	return conf.coinType
-}
-
-func (s *StratumShare) SetVersion(version string) *StratumShare {
-	s.version = version
-	return s
-}
-
-func (s *StratumShare) SetExtraNonce1(extraNonce1 string) *StratumShare {
-	s.extraNonce1 = extraNonce1
-	return s
-}
-
-func (s *StratumShare) SetExtraNonce2(extraNonce2 string) *StratumShare {
-	s.extraNonce2 = extraNonce2
-	return s
-}
-
-func (s *StratumShare) SetNTime(nTime string) *StratumShare {
-	s.nTime = nTime
-	return s
-}
-
-func (s *StratumShare) SetNBits(nBits string) *StratumShare {
-	s.nBits = nBits
-	return s
-}
-
-func (s *StratumShare) SetNonce(nonce string) *StratumShare {
-	s.nonce = nonce
-	return s
-}
-
-func (s *StratumShare) SetPervHash(hash string) *StratumShare {
-	s.prevHash = hash
-	return s
-}
-
-func (s *StratumShare) SetCoinBase1(coinBase1 string) *StratumShare {
-	s.coinBase1 = coinBase1
-	return s
-}
-
-func (s *StratumShare) SetCoinBase2(coinBase2 string) *StratumShare {
-	s.coinBase2 = coinBase2
-	return s
-}
-
-func (s *StratumShare) SetMeta(meta *StratumShareMeta) *StratumShare {
-	s.meta = meta
-	return s
-}
-
-func (meta *StratumShareMeta) SetHeight(height int32) *StratumShareMeta {
-	meta.Height = height
-	return meta
-}
-
-func (meta *StratumShareMeta) SetJobCurTs(curTs int32) *StratumShareMeta {
-	meta.JobCurTs = curTs
-	return meta
 }
 
 func GenerateJobId(height int32, index int, difficulty uint64) string {
