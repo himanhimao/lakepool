@@ -48,6 +48,8 @@ func JobNotify(s *server.Server, ev cellnet.Event) {
 		log.WithFields(log.Fields{
 			"sid":         sid,
 			"worker_name": workerName,
+			"height": latestNotifyJobHeight,
+			"index": newNotifyJobIndex,
 		}).Errorln("jobNotify height not found new job")
 		stratumContext.(*context.StratumContext).NotifyMutex.Unlock()
 		return
