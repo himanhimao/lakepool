@@ -36,7 +36,7 @@ func newJobList() *JobList {
 	return &JobList{0, len(list), list}
 }
 
-func (l *JobList) Append(job *service.StratumJob) {
+func (l *JobList) append(job *service.StratumJob) {
 	if l.index <= l.len-1 {
 		l.list[l.index] = job
 	} else {
@@ -65,7 +65,7 @@ func (r *JobRepo) SetJob(height int32, job *service.StratumJob) {
 			jobList = newJobList()
 			r.jobs[height] = jobList
 		}
-		jobList.Append(job)
+		jobList.append(job)
 
 		if r.cleanHeight == 0 {
 			r.cleanHeight = height
