@@ -114,13 +114,15 @@ Retry:
 					goto Retry
 				}
 				if err != nil {
-					log.Errorln(err.Error())
+					log.Errorln("subscribe recv error", err.Error())
 				}
 
 				if resp != nil {
 					pbStratumJob := resp.Job
 					stratumJob := loadStratumJob(pbStratumJob)
 					handler(stratumJob)
+				} else {
+					log.Errorln("subscribe resp is invalid")
 				}
 			}
 		}

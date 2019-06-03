@@ -109,7 +109,7 @@ func (s *Server) Init() error {
 	go s.sMgr.GetSphereService().Subscribe(s.ctx, func(job *service.StratumJob) {
 		if s.jobRepo.GetLatestHeight() != job.Meta.Height {
 			if _, err := s.sMgr.GetSphereService().ClearShareHistory(s.jobRepo.GetLatestHeight()); err != nil {
-				log.Warnln("clear share history error.", err)
+				log.Errorln("clear share history error.", err)
 			}
 		}
 		index := s.jobRepo.SetJob(job.Meta.Height, job)
