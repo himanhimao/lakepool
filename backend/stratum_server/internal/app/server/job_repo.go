@@ -1,11 +1,11 @@
 package server
 
 import (
+	"context"
 	"github.com/himanhimao/lakepool/backend/stratum_server/internal/pkg/service"
+	log "github.com/sirupsen/logrus"
 	"sync"
 	"time"
-	log "github.com/sirupsen/logrus"
-	"context"
 )
 
 const (
@@ -22,7 +22,7 @@ type JobList struct {
 type JobRepo struct {
 	cleanHeight  int32
 	latestHeight int32
-	jobs       map[int32]*JobList
+	jobs         map[int32]*JobList
 	mutex        sync.Mutex
 }
 
@@ -76,7 +76,7 @@ func (r *JobRepo) SetJob(height int32, job *service.StratumJob) int {
 		r.latestHeight = height
 		r.mutex.Unlock()
 	}
-	return  index
+	return index
 }
 
 func (r *JobRepo) getJobList(height int32) *JobList {
@@ -110,7 +110,7 @@ func (r *JobRepo) Clean(ctx context.Context) {
 				r.mutex.Lock()
 				jobList := r.getJobList(r.cleanHeight)
 				if jobList != nil {
-					r.SetJob(r.cleanHeight, nil)
+					r.jobs[r.cleanHeight] = nil
 					delete(r.jobs, r.cleanHeight)
 				}
 				r.cleanHeight++
