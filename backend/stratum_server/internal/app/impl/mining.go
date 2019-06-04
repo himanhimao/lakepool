@@ -118,7 +118,7 @@ func Authorize(s *server.Server, ev cellnet.Event) {
 	stratumContext.(*context.StratumContext).UserName = username
 	stratumContext.(*context.StratumContext).ExtName = extName
 	stratumContext.(*context.StratumContext).Password = password
-	stratumContext.(*context.StratumContext).AcceptedTs = time.Now().Unix()
+	stratumContext.(*context.StratumContext).AuthorizeTs = time.Now().Unix()
 
 	log.WithFields(log.Fields{
 		"sid":         sid,
@@ -244,15 +244,6 @@ func Submit(s *server.Server, ev cellnet.Event) {
 	errUnauthorizedWorkerResp := proto.NewErrUnauthorizedWorkerRESP(msgId)
 	stratumContext.(*context.StratumContext).SubmitCount++
 
-	if stratumContext.(*context.StratumContext).AuthorizeTs == 0 || workerName != stratumContext.(*context.StratumContext).WorkerName {
-		log.WithFields(log.Fields{
-			"sid":         sid,
-			"worker_name": workerName,
-		}).Errorln("unauthorized worker.")
-		ev.Session().Send(errUnauthorizedWorkerResp)
-		return
-	}
-
 	if !ok {
 		log.WithFields(log.Fields{
 			"sid":         sid,
@@ -262,6 +253,21 @@ func Submit(s *server.Server, ev cellnet.Event) {
 		ev.Session().Close()
 		return
 	}
+
+	if stratumContext == nil {
+		return
+	}
+
+	if stratumContext.(*context.StratumContext).AuthorizeTs == 0 || workerName != stratumContext.(*context.StratumContext).WorkerName {
+		log.WithFields(log.Fields{
+			"sid":         sid,
+			"worker_name": workerName,
+		}).Errorln("unauthorized worker")
+		ev.Session().Send(errUnauthorizedWorkerResp)
+		return
+	}
+
+
 
 	height, index, difficulty, err := service.ExtractJobId(jobId)
 	if err != nil {
@@ -338,15 +344,7 @@ func Submit(s *server.Server, ev cellnet.Event) {
 	}
 
 	var isRightShare bool
-	if shareResult.State != service.StateSuccess && shareResult.State != service.StateSuccessSubmitBlock {
-		log.WithFields(log.Fields{
-			"sid":         sid,
-			"worker_name": workerName,
-			"status":      shareResult.State,
-		}).Infoln("submit share failed")
-		stratumContext.(*context.StratumContext).RejectCount++
-		ev.Session().Send(submitRefuseRESP)
-	} else {
+	if shareResult.State == service.StateSuccess || shareResult.State == service.StateSuccessSubmitBlock {
 		isRightShare = true
 		log.WithFields(log.Fields{
 			"sid":           sid,
@@ -356,6 +354,14 @@ func Submit(s *server.Server, ev cellnet.Event) {
 		submitPassRESP := proto.NewSubmitRESP(msgId, proto.SubmitPass)
 		stratumContext.(*context.StratumContext).AcceptCount++
 		ev.Session().Send(submitPassRESP)
+	} else {
+		log.WithFields(log.Fields{
+			"sid":         sid,
+			"worker_name": workerName,
+			"status":      shareResult.State,
+		}).Infoln("submit share failed")
+		stratumContext.(*context.StratumContext).RejectCount++
+		ev.Session().Send(submitRefuseRESP)
 	}
 
 	//add share log
