@@ -189,6 +189,10 @@ func (s *SphereServer) SubmitShare(ctx context.Context, in *pb.SubmitShareReques
 	}
 
 	if !isSolveHash {
+		log.WithFields(log.Fields{
+			"hash": block.Hash,
+			"target_difficulty": targetDifficulty,
+		}).Debugln("invalid solve hash")
 		return &pb.SubmitShareResponse{Result: &pb.SubmitShareResult{State: pb.StratumShareState_ERR_LOW_DIFFICULTY_SHARE}}, nil
 	}
 
@@ -293,6 +297,9 @@ func (s *SphereServer) Subscribe(in *pb.GetLatestStratumJobRequest, stream pb.Sp
 			log.Debugln("stream context done")
 			goto Out
 		case <-notifyTicker.C:
+			if len(notifyChan) > 0 {
+				<-notifyChan
+			}
 			notifyChan <- true
 		case <-notifyChan:
 			stratumJobPart, blockTransactions, err = coinService.GetLatestStratumJob(registerId, register)
@@ -344,6 +351,7 @@ func (s *SphereServer) Subscribe(in *pb.GetLatestStratumJobRequest, stream pb.Sp
 		}
 	}
 Out:
+	log.Errorln("subscribe exit")
 	return nil
 }
 
