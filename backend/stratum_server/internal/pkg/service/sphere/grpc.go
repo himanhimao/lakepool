@@ -8,6 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/balancer/roundrobin"
+	"google.golang.org/grpc/connectivity"
 	"io"
 	"time"
 )
@@ -21,6 +22,7 @@ var (
 type GRPCService struct {
 	config     *conf.GRPCConfig
 	client     pb.SphereClient
+	conn       *grpc.ClientConn
 	registerId string
 }
 
@@ -33,15 +35,28 @@ func (s *GRPCService) SetConfig(config *conf.GRPCConfig) *GRPCService {
 	return s
 }
 
-
 func (s *GRPCService) Init() error {
+	return s.connect()
+}
+
+func (s *GRPCService) connect() error {
 	address := s.config.FormatHostPort()
 	conn, err := grpc.Dial(address, grpc.WithInsecure(), grpc.WithBalancerName(roundrobin.Name))
 	if err != nil {
 		return err
 	}
 	s.client = pb.NewSphereClient(conn)
+	s.conn = conn
 	return nil
+}
+
+func (s *GRPCService) reconnect() error {
+	if s.conn != nil {
+		if err := s.conn.Close(); err != nil {
+			return err
+		}
+	}
+	return s.connect()
 }
 
 func (s *GRPCService) GetLatestStratumJob() (*service.StratumJob, error) {
@@ -83,21 +98,38 @@ func (s *GRPCService) Register(config *service.StratumConfig, sysInfo *service.S
 	return nil
 }
 
-func (s *GRPCService) Subscribe(ctx context.Context, handler service.SubscribeHandler)  {
+func (s *GRPCService) Subscribe(ctx context.Context, handler service.SubscribeHandler) {
 	var retryNum int
+	var stream pb.Sphere_SubscribeClient
+	var err error
 	log.Infoln("Subscribing to gbt job")
 Retry:
-	getLatestStratumJobRequest := &pb.GetLatestStratumJobRequest{RegisterId: s.registerId}
-	stream, err := s.client.Subscribe(context.Background(), getLatestStratumJobRequest)
-	if err != nil {
-		log.Errorln("subscribe error ", err.Error())
-		time.Sleep(ReconnectWaitTime)
-		if retryNum < RetryNum {
+	if s.conn.GetState() == connectivity.Ready {
+		getLatestStratumJobRequest := &pb.GetLatestStratumJobRequest{RegisterId: s.registerId}
+		stream, err = s.client.Subscribe(context.Background(), getLatestStratumJobRequest)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"error": err.Error(),
+			}).Errorln("subscribe remote method error")
 			goto Retry
-		} else {
-			goto Out
+		}
+	} else {
+		time.Sleep(ReconnectWaitTime)
+		err = s.reconnect()
+		if err != nil {
+			log.WithFields(log.Fields{
+				"error": err,
+			}).Errorln("subscribe reconnect error")
+
+			if retryNum < RetryNum {
+				retryNum++
+				goto Retry
+			} else {
+				goto Out
+			}
 		}
 	}
+
 	for {
 		if stream != nil {
 			select {
@@ -105,7 +137,7 @@ Retry:
 				log.Errorln("sphere subscribe server interrupt. try reconnect..")
 				goto Retry
 			case <-ctx.Done():
-				log.Debugln("subscribe routine cancel.")
+				log.Errorln("subscribe routine cancel.")
 				goto Out
 			default:
 				resp, err := stream.Recv()
@@ -114,7 +146,10 @@ Retry:
 					goto Retry
 				}
 				if err != nil {
-					log.Errorln("subscribe recv error", err.Error())
+					log.WithFields(log.Fields{
+						"error": err,
+					}).Errorln("subscribe recv error")
+					goto Retry
 				}
 
 				if resp != nil {
@@ -123,11 +158,15 @@ Retry:
 					handler(stratumJob)
 				} else {
 					log.Errorln("subscribe resp is invalid")
+					goto Retry
 				}
 			}
+		} else {
+			goto Retry
 		}
 	}
 Out:
+	log.Errorln("subscribe exit")
 	return
 }
 
