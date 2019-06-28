@@ -18,6 +18,7 @@ const (
 	MsgFullNameJobDifficultyCheck                       = "proto.jobDifficultyCheck"
 	MsgFullNameJobHashCheck                             = "proto.jobHashCheck"
 	MiningRecvMethodSubscribe                           = "mining.subscribe"
+	MiningRecvMethodExtranonceSubscribe                 = "mining.extranonce.subscribe"
 	MiningRecvMethodAuthorize                           = "mining.authorize"
 	MiningRecvMethodSubmit                              = "mining.submit"
 	MiningRespMethodSetDifficulty                       = "mining.set_difficulty"

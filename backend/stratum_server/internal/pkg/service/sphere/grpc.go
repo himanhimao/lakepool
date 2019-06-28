@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	RetryNum =  1000
+	RetryNum          = 1000
 	ReconnectWaitTime = time.Second * 15
 	Timeout           = time.Second * 30
 )
@@ -104,7 +104,22 @@ func (s *GRPCService) Subscribe(ctx context.Context, handler service.SubscribeHa
 	var err error
 	log.Infoln("Subscribing to gbt job")
 Retry:
-	if s.conn.GetState() == connectivity.Ready {
+	if s.conn.GetState() != connectivity.Ready || stream == nil {
+		log.Infoln("subscribe connect")
+		time.Sleep(ReconnectWaitTime)
+		err = s.reconnect()
+		retryNum++
+		if err != nil {
+			log.WithFields(log.Fields{
+				"error": err,
+			}).Errorln("subscribe connect error")
+			if retryNum < RetryNum {
+				goto Retry
+			} else {
+				goto Out
+			}
+		}
+
 		getLatestStratumJobRequest := &pb.GetLatestStratumJobRequest{RegisterId: s.registerId}
 		stream, err = s.client.Subscribe(context.Background(), getLatestStratumJobRequest)
 		if err != nil {
@@ -112,21 +127,6 @@ Retry:
 				"error": err.Error(),
 			}).Errorln("subscribe remote method error")
 			goto Retry
-		}
-	} else {
-		time.Sleep(ReconnectWaitTime)
-		err = s.reconnect()
-		if err != nil {
-			log.WithFields(log.Fields{
-				"error": err,
-			}).Errorln("subscribe reconnect error")
-
-			if retryNum < RetryNum {
-				retryNum++
-				goto Retry
-			} else {
-				goto Out
-			}
 		}
 	}
 

@@ -214,7 +214,7 @@ func main() {
 		redisCache := cache.NewRedisCache().SetClient(redisPool)
 		mgr.SetCacheService(redisCache)
 
-		btcCoin := btc.NewBTCCoin().SetRPCClient(btcRpcClient)
+		btcCoin := btc.NewCoin().SetRPCClient(btcRpcClient)
 		mgr.SetCoinService(service.CoinTypeBTC, btcCoin)
 		sphereConfig.Configs[service.CoinTypeBTC] = btcCoinConfig
 		return nil

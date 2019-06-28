@@ -58,6 +58,7 @@ func (s *SphereServer) Register(ctx context.Context, in *pb.RegisterRequest) (*p
 	registerId := s.calculateRegisterId(in.SysInfo)
 	registerKey := service.GenRegisterKey(registerId)
 	register := service.NewRegister()
+	register.Id = registerId
 	register.PayoutAddress = in.Config.PayoutAddress
 	register.PoolTag = in.Config.PoolTag
 	register.CoinType = in.Config.CoinType
@@ -102,7 +103,7 @@ func (s *SphereServer) GetLatestStratumJob(ctx context.Context, in *pb.GetLatest
 		return nil, st.Err()
 	}
 
-	stratumJobPart, jobTransactions, err := coinService.GetLatestStratumJob(registerId, register)
+	stratumJobPart, jobTransactions, err := coinService.GetLatestStratumJob(register)
 	if err != nil {
 		st := status.New(codes.Internal, fmt.Sprintf("%s : %s", "Abnormal - get stratum job ", err))
 		return nil, st.Err()
@@ -174,7 +175,8 @@ func (s *SphereServer) SubmitShare(ctx context.Context, in *pb.SubmitShareReques
 	}
 
 	blockHeaderPart, coinBasePart := splitServiceParts(in.Share)
-	block, err := coinService.MakeBlock(blockHeaderPart, coinBasePart, transactions)
+	log.WithFields(log.Fields{"job_key": jobKey}).Infoln("submit share")
+	block, err := coinService.MakeBlock(register, blockHeaderPart, coinBasePart, transactions)
 	if err != nil {
 		st := status.New(codes.Internal, err.Error())
 		return nil, st.Err()
@@ -190,7 +192,7 @@ func (s *SphereServer) SubmitShare(ctx context.Context, in *pb.SubmitShareReques
 
 	if !isSolveHash {
 		log.WithFields(log.Fields{
-			"hash": block.Hash,
+			"hash":              block.Hash,
 			"target_difficulty": targetDifficulty,
 		}).Debugln("invalid solve hash")
 		return &pb.SubmitShareResponse{Result: &pb.SubmitShareResult{State: pb.StratumShareState_ERR_LOW_DIFFICULTY_SHARE}}, nil
@@ -286,7 +288,7 @@ func (s *SphereServer) Subscribe(in *pb.GetLatestStratumJobRequest, stream pb.Sp
 	pullGBTTicker := time.NewTicker(pullGBTInterval)
 	var currentBlockHeight int
 	var stratumJobPart *service.StratumJobPart
-	var blockTransactions []*service.BlockTransactionPart
+	var blockTransactions []*service.Transaction
 	notifyChan := make(chan bool, 1)
 	jobCacheExpireTs := int(s.Conf.Configs[register.CoinType].JobCacheExpireTs.Seconds())
 
@@ -297,16 +299,15 @@ func (s *SphereServer) Subscribe(in *pb.GetLatestStratumJobRequest, stream pb.Sp
 			log.Debugln("stream context done")
 			goto Out
 		case <-notifyTicker.C:
-			if len(notifyChan) > 0 {
-				<-notifyChan
+			if len(notifyChan) == 0 {
+				notifyChan <- true
 			}
-			notifyChan <- true
 		case <-notifyChan:
-			stratumJobPart, blockTransactions, err = coinService.GetLatestStratumJob(registerId, register)
+			stratumJobPart, blockTransactions, err = coinService.GetLatestStratumJob(register)
 			if err != nil {
 				log.WithFields(log.Fields{
 					"error":       err,
-					"register_id": registerId,
+					"register_id": register.Id,
 					"coinType":    register.CoinType,
 				}).Errorln("get latest stratum job error")
 				break
@@ -344,8 +345,12 @@ func (s *SphereServer) Subscribe(in *pb.GetLatestStratumJobRequest, stream pb.Sp
 					"cur_block_height": currentBlockHeight,
 					"register_id":      registerId,
 					"coinType":         register.CoinType,
+					"notify_chain_len": len(notifyChan),
 				}).Infoln("new block height")
 				currentBlockHeight = newBlockHeight
+				if len(notifyChan) > 0 {
+					<-notifyChan
+				}
 				notifyChan <- true
 			}
 		}

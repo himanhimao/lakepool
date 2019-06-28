@@ -7,8 +7,8 @@ import (
 
 type CoinService interface {
 	IsValidAddress(address string, isUsedTestNet bool) bool
-	GetLatestStratumJob(registerId string, r *Register) (*StratumJobPart, []*BlockTransactionPart, error)
-	MakeBlock(header *BlockHeaderPart, base *BlockCoinBasePart, transactions []*BlockTransactionPart) (*Block, error)
+	GetLatestStratumJob(r *Register) (*StratumJobPart, []*Transaction, error)
+	MakeBlock(r *Register, header *BlockHeaderPart, base *BlockCoinBasePart, transactions []*Transaction) (*Block, error)
 	SubmitBlock(data string) (bool, error)
 	IsSolveHash(hash string, targetDifficulty *big.Int) (bool, error)
 	GetTargetDifficulty(bits string) (*big.Int, error)
@@ -37,8 +37,9 @@ type StratumJobPart struct {
 	Meta         *StratumJobMetaPart
 }
 
-type BlockTransactionPart struct {
+type Transaction struct {
 	Data string
+	Hash string
 }
 
 type BlockHeaderPart struct {
@@ -64,8 +65,8 @@ func NewStratumJobPart() *StratumJobPart {
 	return &StratumJobPart{}
 }
 
-func NewBlockTransactionPart() *BlockTransactionPart {
-	return &BlockTransactionPart{}
+func NewBlockTransactionPart(hash string, data string) *Transaction {
+	return &Transaction{Hash: hash, Data: data}
 }
 
 func NewBlockCoinBasePart() *BlockCoinBasePart {
@@ -76,8 +77,8 @@ func NewBlockHeaderPart() *BlockHeaderPart {
 	return &BlockHeaderPart{}
 }
 
-func NewBlock() *Block {
-	return &Block{}
+func NewBlock(hash string, data string) *Block {
+	return &Block{Hash:hash,Data:data}
 }
 
 func (job *StratumJobPart) ToPBStratumJob() *pb.StratumJob {

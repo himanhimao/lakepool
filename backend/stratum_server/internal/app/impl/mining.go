@@ -1,18 +1,18 @@
 package impl
 
 import (
+	ctx "context"
 	"encoding/hex"
 	"github.com/davyxu/cellnet"
+	"github.com/himanhimao/lakepool/backend/stratum_server/internal/app/server"
+	"github.com/himanhimao/lakepool/backend/stratum_server/internal/pkg/cellnet/peer/tcp"
 	"github.com/himanhimao/lakepool/backend/stratum_server/internal/pkg/cellnet/proto"
 	"github.com/himanhimao/lakepool/backend/stratum_server/internal/pkg/context"
-	"github.com/himanhimao/lakepool/backend/stratum_server/internal/app/server"
 	"github.com/himanhimao/lakepool/backend/stratum_server/internal/pkg/service"
 	"github.com/himanhimao/lakepool/backend/stratum_server/internal/pkg/util"
+	log "github.com/sirupsen/logrus"
 	"strings"
 	"time"
-	log "github.com/sirupsen/logrus"
-	"github.com/himanhimao/lakepool/backend/stratum_server/internal/pkg/cellnet/peer/tcp"
-	ctx "context"
 )
 
 func Subscribe(s *server.Server, ev cellnet.Event) {
@@ -23,9 +23,10 @@ func Subscribe(s *server.Server, ev cellnet.Event) {
 	sid := ev.Session().ID()
 	msgId := subScribeREQ.Id
 	config := s.GetConfig().StratumConfig
-	extraNonce1 := hex.EncodeToString([]byte(util.RandString(config.StratumSubscribeConfig.ExtraNonce1Length)))
+	extraNonce1 := util.RandString(config.StratumSubscribeConfig.ExtraNonce1Length)
+	extraNonce1Hex := hex.EncodeToString([]byte(extraNonce1))
 	extraNonce2LengthValue := config.StratumSubscribeConfig.ExtraNonce2Length
-	notifyPlaceHolder := config.StratumSubscribeConfig.DifficultyPlaceholder
+	notifyPlaceHolder := config.StratumSubscribeConfig.NotifyPlaceholder
 	difficultyPlaceHolder := config.StratumSubscribeConfig.DifficultyPlaceholder
 	userAgent := subScribeREQ.UserAgent
 
@@ -35,7 +36,7 @@ func Subscribe(s *server.Server, ev cellnet.Event) {
 			stratumContext.(*context.StratumContext).UserAgent = userAgent
 		}
 		stratumContext.(*context.StratumContext).SubscribeTs = time.Now().Unix()
-		stratumContext.(*context.StratumContext).SessionID = extraNonce1
+		stratumContext.(*context.StratumContext).SessionID = extraNonce1Hex
 	} else {
 		log.WithFields(log.Fields{
 			"sid": sid,
@@ -51,13 +52,19 @@ func Subscribe(s *server.Server, ev cellnet.Event) {
 		"msg_id":                    msgId,
 		"user_agent":                userAgent,
 		"extra_nonce_1":             extraNonce1,
+		"extra_nonce_length":        config.StratumSubscribeConfig.ExtraNonce1Length,
+		"extra_nonce_1_hex":         extraNonce1Hex,
 		"extra_nonce2_length_value": extraNonce2LengthValue,
 		"notify":                    notifyPlaceHolder,
 		"difficulty":                difficultyPlaceHolder,
 	}).Infoln("subscribed.")
 
-	resp := proto.NewSubscribeRESP(msgId, notifyPlaceHolder, difficultyPlaceHolder, extraNonce1, extraNonce2LengthValue)
+	resp := proto.NewSubscribeRESP(msgId, notifyPlaceHolder, difficultyPlaceHolder, extraNonce1Hex, extraNonce2LengthValue)
 	ev.Session().Send(resp)
+}
+
+func ExtraSubscribe(s *server.Server, ev cellnet.Event) {
+	return
 }
 
 func Authorize(s *server.Server, ev cellnet.Event) {
@@ -169,7 +176,8 @@ func Authorize(s *server.Server, ev cellnet.Event) {
 	latestJobIndex := 0
 	latestNotifyTs := time.Now().Unix()
 	startNotifyTs := latestNotifyTs
-	jobId := service.GenerateJobId(latestJobHeight, latestJobIndex, defaultDifficulty)
+	sessionId := stratumContext.(*context.StratumContext).SessionID
+	jobId := service.GenerateJobId(sessionId, latestJobHeight, latestJobIndex, defaultDifficulty)
 	stratumJob := s.GetJobRepo().GetJob(latestJobHeight, latestJobIndex)
 
 	if stratumJob == nil {
@@ -187,7 +195,7 @@ func Authorize(s *server.Server, ev cellnet.Event) {
 	stratumContext.(*context.StratumContext).StartNotifyTs = startNotifyTs
 	stratumContext.(*context.StratumContext).LatestNotifyTs = latestNotifyTs
 	stratumContext.(*context.StratumContext).LatestNotifyJobIndex = latestJobIndex
-	stratumContext.(*context.StratumContext).NotifyCount ++
+	stratumContext.(*context.StratumContext).NotifyCount++
 
 	notifyRESP := proto.NewJSONRpcNotifyRESP(stratumJob.ToJSONInterface())
 	ev.Session().Send(notifyRESP)
@@ -267,12 +275,11 @@ func Submit(s *server.Server, ev cellnet.Event) {
 		return
 	}
 
-
-
-	height, index, difficulty, err := service.ExtractJobId(jobId)
+	_, height, index, difficulty, err := service.ExtractJobId(jobId)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"sid":         sid,
+			"job_id":      jobId,
 			"worker_name": workerName,
 			"error":       err,
 		}).Errorln("invalid jobId")
@@ -280,12 +287,6 @@ func Submit(s *server.Server, ev cellnet.Event) {
 		ev.Session().Close()
 		return
 	}
-	log.WithFields(log.Fields{
-		"sid":        sid,
-		"height":     height,
-		"index":      index,
-		"difficulty": difficulty,
-	}).Debugln("submitted info")
 
 	errJobNotFoundResp := proto.NewErrJobNotFoundRESP(msgId)
 	job := s.GetJobRepo().GetJob(height, index)
@@ -300,6 +301,17 @@ func Submit(s *server.Server, ev cellnet.Event) {
 		ev.Session().Close()
 		return
 	}
+
+	log.WithFields(log.Fields{
+		"sid":           sid,
+		"height":        height,
+		"index":         index,
+		"difficulty":    difficulty,
+		"job_id":        jobId,
+		"coinbase_1":    job.CoinBase1,
+		"coinbase_2":    job.CoinBase2,
+		"merkle_branch": job.MerkleBranch,
+	}).Debugln("submitted info")
 
 	if s.GetJobRepo().GetLatestHeight() != height || job == nil || uint32(job.Meta.MinTimeTs) > nTimeTs {
 		log.WithFields(log.Fields{

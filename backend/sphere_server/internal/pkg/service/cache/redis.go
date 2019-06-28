@@ -1,11 +1,11 @@
 package cache
 
 import (
-	"github.com/gomodule/redigo/redis"
-	"errors"
-	"strconv"
-	"github.com/himanhimao/lakepool/backend/sphere_server/internal/pkg/service"
 	"encoding/json"
+	"errors"
+	"github.com/gomodule/redigo/redis"
+	"github.com/himanhimao/lakepool/backend/sphere_server/internal/pkg/service"
+	"strconv"
 )
 
 var (
@@ -19,7 +19,6 @@ type RedisCache struct {
 func NewRedisCache() *RedisCache {
 	return &RedisCache{}
 }
-
 
 func (c *RedisCache) SetClient(client *redis.Pool) *RedisCache {
 	c.pool = client
@@ -36,7 +35,7 @@ func (c *RedisCache) SetRegisterContext(key service.RegisterKey, r *service.Regi
 	extraNonce1Length := r.ExtraNonce1Length
 	extraNonce2Length := r.ExtraNonce2Length
 
-	if _, err := client.Do("hmset", key, service.KeyRegPayoutAddress,
+	if _, err := client.Do("hmset", key, service.KeyRegId, r.Id, service.KeyRegPayoutAddress,
 		r.PayoutAddress, service.KeyRegPoolTag, r.PoolTag, service.KeyRegCoinType,
 		r.CoinType, service.KeyRegUsedTestNet, strconv.FormatBool(r.UsedTestNet),
 		service.KeyRegExtraNonce1Length, strconv.Itoa(extraNonce1Length),
@@ -54,7 +53,7 @@ func (c *RedisCache) GetRegisterContext(key service.RegisterKey) (*service.Regis
 	if client == nil {
 		return nil, ErrorNoInitialization
 	}
-	values, err := redis.Values(client.Do("hmget", key, service.KeyRegPayoutAddress, service.KeyRegPoolTag,
+	values, err := redis.Values(client.Do("hmget", key, service.KeyRegId, service.KeyRegPayoutAddress, service.KeyRegPoolTag,
 		service.KeyRegCoinType, service.KeyRegUsedTestNet, service.KeyRegExtraNonce1Length, service.KeyRegExtraNonce2Length))
 	if err != nil {
 		return nil, err
@@ -62,28 +61,32 @@ func (c *RedisCache) GetRegisterContext(key service.RegisterKey) (*service.Regis
 
 	r := service.NewRegister()
 	if values[0] != nil {
-		r.PayoutAddress = string(values[0].([]byte))
+		r.Id  = string(values[0].([]byte))
 	}
 
 	if values[1] != nil {
-		r.PoolTag  = string(values[1].([]byte))
+		r.PayoutAddress = string(values[0].([]byte))
 	}
 
 	if values[2] != nil {
-		r.CoinType = string(values[2].([]byte))
+		r.PoolTag = string(values[1].([]byte))
 	}
 
 	if values[3] != nil {
+		r.CoinType = string(values[2].([]byte))
+	}
+
+	if values[4] != nil {
 		res, _ := strconv.ParseBool(string(values[3].([]byte)))
 		r.UsedTestNet = res
 	}
 
-	if values[4] != nil {
+	if values[5] != nil {
 		res, _ := strconv.Atoi(string(values[4].([]byte)))
 		r.ExtraNonce1Length = res
 	}
 
-	if values[5] != nil {
+	if values[6] != nil {
 		res, _ := strconv.Atoi(string(values[5].([]byte)))
 		r.ExtraNonce2Length = res
 	}
@@ -101,7 +104,7 @@ func (c *RedisCache) DelRegisterContext(key service.RegisterKey) error {
 	return err
 }
 
-func (c *RedisCache) SetBlockTransactions(key service.JobKey, expireTs int, transactions []*service.BlockTransactionPart) error {
+func (c *RedisCache) SetBlockTransactions(key service.JobKey, expireTs int, transactions []*service.Transaction) error {
 	client := c.pool.Get()
 	defer client.Close()
 	if client == nil {
@@ -109,6 +112,11 @@ func (c *RedisCache) SetBlockTransactions(key service.JobKey, expireTs int, tran
 	}
 
 	transactionsBytes, err := json.Marshal(transactions)
+	//log.WithFields(log.Fields{
+	//	"key": key,
+	//	"md5": fmt.Sprintf("%x", md5.Sum(transactionsBytes)),
+	//}).Debugln("set block transactions cache")
+
 	if err != nil {
 		return err
 	}
@@ -124,7 +132,7 @@ func (c *RedisCache) SetBlockTransactions(key service.JobKey, expireTs int, tran
 	return nil
 }
 
-func (c *RedisCache) GetBlockTransactions(key service.JobKey) ([]*service.BlockTransactionPart, error) {
+func (c *RedisCache) GetBlockTransactions(key service.JobKey) ([]*service.Transaction, error) {
 	client := c.pool.Get()
 	defer client.Close()
 	if client == nil {
@@ -136,11 +144,17 @@ func (c *RedisCache) GetBlockTransactions(key service.JobKey) ([]*service.BlockT
 		return nil, err
 	}
 
-	var transactions = make([]*service.BlockTransactionPart, 0)
+	var transactions = make([]*service.Transaction, 0)
+
 	err = json.Unmarshal(transactionsBytes, &transactions)
 	if err != nil {
 		return nil, err
 	}
+
+	//log.WithFields(log.Fields{
+	//	"key": key,
+	//	"md5": fmt.Sprintf("%x", md5.Sum(transactionsBytes)),
+	//}).Debugln("get block transactions cache")
 
 	return transactions, nil
 }

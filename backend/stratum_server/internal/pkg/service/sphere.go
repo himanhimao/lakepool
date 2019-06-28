@@ -190,25 +190,26 @@ func NewStratumConfig() *StratumConfig {
 	return &StratumConfig{}
 }
 
-func GenerateJobId(height int32, index int, difficulty uint64) string {
-	jobIdStr := fmt.Sprintf("%d%s%d%s%d", height, SeparatorJobId, index, SeparatorJobId, difficulty)
-	return hex.EncodeToString([]byte(jobIdStr))
+func GenerateJobId(prefix string, height int32, index int, difficulty uint64) string {
+	jobIdStr := fmt.Sprintf("%s%d%s%d%s%d", SeparatorJobId, height, SeparatorJobId, index, SeparatorJobId, difficulty)
+	return fmt.Sprintf("%s%s", prefix, hex.EncodeToString([]byte(jobIdStr)))
 }
 
-func ExtractJobId(jobId string) (int32, int, uint64, error) {
+func ExtractJobId(jobId string) (string, int32, int, uint64, error) {
 	jobIdStr, err := hex.DecodeString(jobId)
 	if err != nil {
-		return 0, 0, 0, ErrorExtractJobId
+		return "", 0, 0, 0, ErrorExtractJobId
 	}
 	data := strings.Split(string(jobIdStr), SeparatorJobId)
 
-	if len(data) != 3 {
-		return 0, 0, 0, ErrorExtractJobId
+	if len(data) != 4{
+		return "", 0, 0, 0, ErrorExtractJobId
 	}
 
-	height, _ := strconv.Atoi(data[0])
-	index, _ := strconv.Atoi(data[1])
-	difficulty, _ := strconv.ParseInt(data[2], 10, 64)
+	prefix  := data[0]
+	height, _ := strconv.Atoi(data[1])
+	index, _ := strconv.Atoi(data[2])
+	difficulty, _ := strconv.ParseInt(data[3], 10, 64)
 
-	return int32(height), index, uint64(difficulty), nil
+	return prefix, int32(height), index, uint64(difficulty), nil
 }

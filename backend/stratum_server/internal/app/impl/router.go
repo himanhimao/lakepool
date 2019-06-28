@@ -7,6 +7,7 @@ import (
 
 func RegisterRoute(router *server.Router) {
 	router.RegisterRouter(proto.MiningRecvMethodSubscribe, Subscribe)
+	router.RegisterRouter(proto.MiningRecvMethodExtranonceSubscribe, ExtraSubscribe)
 	router.RegisterRouter(proto.MiningRecvMethodAuthorize, Authorize)
 	router.RegisterRouter(proto.MiningRecvMethodSubmit, Submit)
 	router.RegisterRouter(proto.ConnClosed, Closed)

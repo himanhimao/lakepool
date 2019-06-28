@@ -1,6 +1,7 @@
 package service
 
 const (
+	KeyRegId                = "id"
 	KeyRegPayoutAddress     = "payoutAddress"
 	KeyRegPoolTag           = "poolTag"
 	KeyRegCoinType          = "coinType"
@@ -10,6 +11,7 @@ const (
 )
 
 type Register struct {
+	Id                string
 	PayoutAddress     string
 	PoolTag           string
 	CoinType          string
@@ -20,7 +22,7 @@ type Register struct {
 
 
 func (r *Register) IsValid() bool {
-	return len(r.PayoutAddress) > 0 && len(r.CoinType) > 0 && len(r.PoolTag) > 0
+	return len(r.Id) > 0 && len(r.PayoutAddress) > 0 && len(r.CoinType) > 0 && len(r.PoolTag) > 0
 }
 
 func NewRegister() *Register {

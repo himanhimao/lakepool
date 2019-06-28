@@ -1,42 +1,44 @@
 package btc
 
 import (
-	"github.com/btcsuite/btcutil"
-	"github.com/btcsuite/btcd/chaincfg"
 	"bytes"
-	"github.com/btcsuite/btcd/wire"
+	"encoding/hex"
+	"fmt"
+	"github.com/btcsuite/btcd/blockchain"
+	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
-	"encoding/hex"
-	"github.com/btcsuite/btcd/blockchain"
+	"github.com/btcsuite/btcd/wire"
+	"github.com/btcsuite/btcutil"
 	"github.com/himanhimao/lakepool/backend/sphere_server/internal/pkg/service"
-	"fmt"
+	log "github.com/sirupsen/logrus"
 	"math/big"
 )
 
 const (
 	PlaceHolder           = 0xEE
 	BaseDifficulty uint64 = 4294967296
+	MaxHash string = "00000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
 )
 
-type BTCCoin struct {
+type Coin struct {
 	rpcClient *RpcClient
 }
 
-func NewBTCCoin() *BTCCoin {
-	return &BTCCoin{}
+func NewCoin() *Coin {
+	return &Coin{}
 }
 
-func NewBTCoinWithArgs(client *RpcClient) *BTCCoin {
-	return &BTCCoin{rpcClient: client}
+func NewBTCoinWithArgs(client *RpcClient) *Coin {
+	return &Coin{rpcClient: client}
 }
 
-func (c *BTCCoin) SetRPCClient(client *RpcClient) *BTCCoin {
+func (c *Coin) SetRPCClient(client *RpcClient) *Coin {
 	c.rpcClient = client
 	return c
 }
 
-func (c *BTCCoin) IsValidAddress(address string, isUsedTestNet bool) bool {
+func (c *Coin) IsValidAddress(address string, isUsedTestNet bool) bool {
 	var err error
 	var result bool = true
 	if isUsedTestNet {
@@ -52,10 +54,10 @@ func (c *BTCCoin) IsValidAddress(address string, isUsedTestNet bool) bool {
 	return result
 }
 
-func (c *BTCCoin) GetLatestStratumJob(registerId string, ctx *service.Register) (*service.StratumJobPart, []*service.BlockTransactionPart, error) {
+func (c *Coin) GetLatestStratumJob(ctx *service.Register) (*service.StratumJobPart, []*service.Transaction, error) {
 	var getBlockTemplateParams [1]interface{}
 	getBlockTemplateParams[0] = map[string][]string{
-		"rules": []string{"segwit"},
+		"rules": {"segwit"},
 	}
 	gbtBlockTemplate, err := c.rpcClient.GetBlockTemplate(getBlockTemplateParams)
 	if err != nil {
@@ -69,11 +71,10 @@ func (c *BTCCoin) GetLatestStratumJob(registerId string, ctx *service.Register) 
 	nBits := gbtBlockTemplate.Bits
 	witnessCommitment := gbtBlockTemplate.DefaultWitnessCommitment
 	height := gbtBlockTemplate.Height
-	coinBaseSignatureScript := generateCoinBase(height, registerId, ctx.PoolTag)
 	blockTemplateTransactions := gbtBlockTemplate.Transactions
 	minTimeTs := gbtBlockTemplate.MinTime
 	curTimeTs := gbtBlockTemplate.CurTime
-	prevBlockHash := littleEndian(reverseString(gbtPrevBlockHash))
+	prevBlockHash := littleEndianUint32(reverseString(gbtPrevBlockHash))
 	placeHolderSize := ctx.ExtraNonce1Length + ctx.ExtraNonce2Length
 	placeHolders := genPlaceHolders(placeHolderSize)
 
@@ -84,7 +85,13 @@ func (c *BTCCoin) GetLatestStratumJob(registerId string, ctx *service.Register) 
 
 	tx := wire.NewMsgTx(wire.TxVersion)
 	pkScript, err := txscript.PayToAddrScript(payoutAddress)
+	coinBaseSignatureScript, err := generateCoinBaseScript(height, ctx.Id, ctx.PoolTag)
 
+	if err != nil {
+		return nil, nil, err
+	}
+
+	//var witnessNonce [blockchain.CoinbaseWitnessDataLen]byte
 	tx.AddTxIn(&wire.TxIn{
 		// Coinbase transactions have no inputs, so previous outpoint is
 		// zero hash and max index.
@@ -92,6 +99,7 @@ func (c *BTCCoin) GetLatestStratumJob(registerId string, ctx *service.Register) 
 			wire.MaxPrevOutIndex),
 		SignatureScript: addPlaceHolders(coinBaseSignatureScript, placeHolders),
 		Sequence:        wire.MaxTxInSequenceNum,
+		//Witness: wire.TxWitness{witnessNonce[:]},
 	})
 
 	tx.AddTxOut(&wire.TxOut{
@@ -117,23 +125,36 @@ func (c *BTCCoin) GetLatestStratumJob(registerId string, ctx *service.Register) 
 	coinBaseTx.MsgTx().Serialize(buf)
 
 	coinBaseTxHex := hex.EncodeToString(buf.Bytes())
-
 	coinBase1, coinBase2, err := splitCoinBaseHex(coinBaseTxHex, placeHolders)
+
+
 	if err != nil {
 		return nil, nil, err
 	}
 
 	var merkleBranch []string
 	var txHashes []*chainhash.Hash
-	var transactions []*service.BlockTransactionPart
+	var transactions []*service.Transaction
 
 	if len(blockTemplateTransactions) > 0 {
-		transactions = make([]*service.BlockTransactionPart, len(blockTemplateTransactions))
 		txHashes = make([]*chainhash.Hash, len(blockTemplateTransactions))
-		for i, tx := range blockTemplateTransactions {
-			txHashes[i], _ = chainhash.NewHashFromStr(tx.Hash)
-			transactions[i] = service.NewBlockTransactionPart()
-			transactions[i].Data = tx.Data
+		transactions = make([]*service.Transaction, len(blockTemplateTransactions))
+
+		for i, txTemplate := range blockTemplateTransactions {
+			tx := wire.NewMsgTx(wire.TxVersion)
+			txBytes, _ := hex.DecodeString(txTemplate.Data)
+			err := tx.Deserialize(bytes.NewReader(txBytes))
+			if err != nil {
+				log.WithFields(log.Fields{
+					"err": err,
+				}).Warningln("make block deserialize error")
+				continue
+			}
+			buf := bytes.NewBuffer(make([]byte, 0, tx.SerializeSizeStripped()))
+			tx.SerializeNoWitness(buf)
+			txHashes[i] = btcutil.NewTx(tx).Hash()
+			txHexData := hex.EncodeToString(buf.Bytes())
+			transactions[i] = service.NewBlockTransactionPart(tx.TxHash().String(), txHexData)
 		}
 		merkleBranch = makeMerkleBranch(txHashes)
 	}
@@ -155,7 +176,7 @@ func (c *BTCCoin) GetLatestStratumJob(registerId string, ctx *service.Register) 
 	return stratumJobPart, transactions, nil
 }
 
-func (c *BTCCoin) MakeBlock(header *service.BlockHeaderPart, base *service.BlockCoinBasePart, transactions []*service.BlockTransactionPart) (*service.Block, error) {
+func (c *Coin) MakeBlock(ctx *service.Register, header *service.BlockHeaderPart, base *service.BlockCoinBasePart, transactions []*service.Transaction) (*service.Block, error) {
 	var block wire.MsgBlock
 
 	blockVersion, err := decodeVersion(header.Version)
@@ -184,59 +205,97 @@ func (c *BTCCoin) MakeBlock(header *service.BlockHeaderPart, base *service.Block
 	}
 
 	coinBaseBuf := new(bytes.Buffer)
-
 	coinBaseBuf.Write([]byte(base.CoinBase1))
 	coinBaseBuf.Write([]byte(base.ExtraNonce1))
 	coinBaseBuf.Write([]byte(base.ExtraNonce2))
 	coinBaseBuf.Write([]byte(base.CoinBase2))
 
+	log.WithFields(log.Fields{
+		"version":         header.Version,
+		"prev_block_hash": header.PrevHash,
+		"timestamp":       header.NTime,
+		"bits":            header.NBits,
+		"nonce":           header.Nonce,
+		"coinbase_1":      base.CoinBase1,
+		"coinbase_2":      base.CoinBase2,
+		"extranonce_1":    base.ExtraNonce1,
+		"extranonce_2":    base.ExtraNonce2,
+	}).Debugln("make block source data")
+
+	txBytes, err := hex.DecodeString(coinBaseBuf.String())
+	if err != nil {
+		log.WithFields(log.Fields{
+			"error": err.Error(),
+		}).Errorln("decode coinbase buf  error")
+		return nil, err
+	}
+
 	coinBaseMsgTx := wire.NewMsgTx(wire.TxVersion)
-	tx, err := hex.DecodeString(coinBaseBuf.String())
+	err = coinBaseMsgTx.DeserializeNoWitness(bytes.NewReader(txBytes))
 	if err != nil {
+		log.WithFields(log.Fields{
+			"error": err.Error(),
+		}).Errorln("decode coinbase tx error")
 		return nil, err
 	}
 
-	err = coinBaseMsgTx.Deserialize(bytes.NewReader(tx))
-	if err != nil {
-		return nil, err
-	}
-
+	var merkleBranch []string
 	coinBaseTx := btcutil.NewTx(coinBaseMsgTx)
-	blockTxns := []*btcutil.Tx{coinBaseTx}
+	blockTxes := make([]*btcutil.Tx, len(transactions)+1)
+	blockTxes[0] = coinBaseTx
 
-	for _, transaction := range transactions {
+	txHashes := make([]*chainhash.Hash, len(transactions))
+	for i, transaction := range transactions {
 		tx, err := decodeTransaction(transaction.Data)
 		if err != nil {
+			log.Errorln("decode transaction error %s", err.Error())
 			return nil, err
 		}
-		blockTxns = append(blockTxns, tx)
+		txHashes[i] = tx.Hash()
+		blockTxes[i+1] = tx
 	}
-
-	merkles := blockchain.BuildMerkleTreeStore(blockTxns, false)
+	merkleBranch = makeMerkleBranch(txHashes)
+	merkleRootStr :=  buildMerkleRoot(coinBaseTx.Hash().String(), merkleBranch)
+	merkleRoot, _:= chainhash.NewHashFromStr(merkleRootStr)
 	block.Header = wire.BlockHeader{
 		Version:    blockVersion,
 		PrevBlock:  prevHash,
-		MerkleRoot: *merkles[len(merkles)-1],
+		MerkleRoot: *merkleRoot,
 		Timestamp:  timestamp,
 		Bits:       bits,
 		Nonce:      nonce,
 	}
 
 	blockHeaderHash := block.Header.BlockHash()
-	for _, tx := range blockTxns {
+
+	log.WithFields(log.Fields{
+		"target_version":     blockVersion,
+		"target_timestamp":   timestamp.Unix(),
+		"target_prevHash":    prevHash.String(),
+		"target_nonce":       nonce,
+		"target_bits":        bits,
+		"coinbase_tx_hash":   coinBaseTx.Hash().String(),
+		"coinbase_tx_witness_hash": coinBaseMsgTx.WitnessHash().String(),
+		"merkle_root": merkleRoot.String(),
+		"block_hash":         blockHeaderHash.String(),
+		"block_tx_0":         blockTxes[0].Hash().String(),
+		"block_tx_len":       len(blockTxes),
+		"merkle_branch":      merkleBranch,
+		"coinbase_hex":       coinBaseBuf.String(),
+	}).Debugln("make block target data")
+
+	for _, tx := range blockTxes {
 		if err := block.AddTransaction(tx.MsgTx()); err != nil {
 			return nil, err
 		}
 	}
 	utilBlock := btcutil.NewBlock(&block)
-
-	b := service.NewBlock()
-	b.Hash = blockHeaderHash.String()
-	b.Data = utilBlock.Hash().String()
+	blockData, _ := utilBlock.Bytes()
+	b := service.NewBlock(blockHeaderHash.String(), hex.EncodeToString(blockData))
 	return b, nil
 }
 
-func (c *BTCCoin) SubmitBlock(data string) (bool, error) {
+func (c *Coin) SubmitBlock(data string) (bool, error) {
 	var submitBlockParams [1]interface{}
 	submitBlockParams[0] = data
 	result, err := c.rpcClient.SubmitBlock(submitBlockParams)
@@ -246,19 +305,22 @@ func (c *BTCCoin) SubmitBlock(data string) (bool, error) {
 	return result, nil
 }
 
-func (c *BTCCoin) IsSolveHash(hash string, targetDifficulty *big.Int) (bool, error) {
+func (c *Coin) IsSolveHash(hash string, targetDifficulty *big.Int) (bool, error) {
 	hashPtr, err := chainhash.NewHashFromStr(hash)
 	if err != nil {
 		return false, err
 	}
 
-	if blockchain.HashToBig(hashPtr).Cmp(targetDifficulty) < 0 {
+	maxHash, _ := chainhash.NewHashFromStr(MaxHash)
+	targetValue := new(big.Int).Div(blockchain.HashToBig(maxHash),  targetDifficulty)
+
+	if blockchain.HashToBig(hashPtr).Cmp(targetValue) <= 0 {
 		return true, nil
 	}
 	return false, nil
 }
 
-func (c *BTCCoin) GetTargetDifficulty(bitsHex string) (*big.Int, error) {
+func (c *Coin) GetTargetDifficulty(bitsHex string) (*big.Int, error) {
 	bits, err := decodeBits(bitsHex)
 	if err != nil {
 		return nil, err
@@ -266,14 +328,13 @@ func (c *BTCCoin) GetTargetDifficulty(bitsHex string) (*big.Int, error) {
 	return blockchain.CompactToBig(bits), nil
 }
 
-func (c *BTCCoin) CalculateShareComputePower(targetDifficulty *big.Int) (*big.Int, error) {
+func (c *Coin) CalculateShareComputePower(targetDifficulty *big.Int) (*big.Int, error) {
 	//TODO check variable
 	baseDifficultyBig := new(big.Int).SetUint64(BaseDifficulty)
 	return new(big.Int).Mul(baseDifficultyBig, targetDifficulty), nil
 }
 
-
-func (c *BTCCoin) GetNewBlockHeight() (int, error) {
+func (c *Coin) GetNewBlockHeight() (int, error) {
 	miningInfo, err := c.rpcClient.GetMiningInfo()
 	if err != nil {
 		return 0, err

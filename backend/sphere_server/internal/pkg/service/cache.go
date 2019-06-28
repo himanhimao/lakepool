@@ -14,8 +14,8 @@ type CacheService interface {
 	SetRegisterContext(key RegisterKey, r *Register) error
 	GetRegisterContext(key RegisterKey) (*Register, error)
 	DelRegisterContext(key RegisterKey) error
-	SetBlockTransactions(key JobKey, expireTs int, transactions []*BlockTransactionPart) error
-	GetBlockTransactions(key JobKey) ([]*BlockTransactionPart, error)
+	SetBlockTransactions(key JobKey, expireTs int, transactions []*Transaction) error
+	GetBlockTransactions(key JobKey) ([]*Transaction, error)
 	SetShareHash(key ShareKey, hash string) error
 	ExistShareHash(key ShareKey, hash string) (bool, error)
 	ClearShareHistory(key ShareKey) error

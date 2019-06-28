@@ -43,9 +43,10 @@ func JobNotify(s *server.Server, ev cellnet.Event) {
 	latestNotifyJobHeight := stratumContext.(*context.StratumContext).LatestNotifyJobHeight
 	latestNotifyJobIndex := stratumContext.(*context.StratumContext).LatestNotifyJobIndex
 	latestDifficulty := stratumContext.(*context.StratumContext).LatestDifficulty
+	sessionId := stratumContext.(*context.StratumContext).SessionID
 
 	newNotifyTs := time.Now().Unix()
-	newNotifyJobIndex := latestNotifyJobIndex + 1
+	newNotifyJobIndex := latestNotifyJobIndex +1
 	newJob := s.GetJobRepo().GetJob(latestNotifyJobHeight, newNotifyJobIndex)
 	if newJob == nil {
 		//如果未找到任务, return
@@ -58,7 +59,7 @@ func JobNotify(s *server.Server, ev cellnet.Event) {
 		stratumContext.(*context.StratumContext).NotifyMutex.Unlock()
 		return
 	}
-	jobId := service.GenerateJobId(latestNotifyJobHeight, latestNotifyJobIndex, latestDifficulty)
+	jobId := service.GenerateJobId(sessionId, latestNotifyJobHeight, newNotifyJobIndex, latestDifficulty)
 	newJob = newJob.Fill(jobId, latestNotifyTs, false)
 	stratumContext.(*context.StratumContext).LatestNotifyJobHeight = latestNotifyJobHeight
 	stratumContext.(*context.StratumContext).LatestNotifyTs = newNotifyTs
@@ -173,6 +174,7 @@ func JobHeightCheck(s *server.Server, ev cellnet.Event) {
 	}
 
 	stratumContext.(*context.StratumContext).NotifyMutex.Lock()
+	sessionId := stratumContext.(*context.StratumContext).SessionID
 	workerName := stratumContext.(*context.StratumContext).WorkerName
 	latestDifficulty := stratumContext.(*context.StratumContext).LatestDifficulty
 	currentNotifyJobHeight := stratumContext.(*context.StratumContext).LatestNotifyJobHeight
@@ -192,7 +194,7 @@ func JobHeightCheck(s *server.Server, ev cellnet.Event) {
 			return
 		}
 
-		jobId := service.GenerateJobId(latestJobHeight, latestJobIndex, latestDifficulty)
+		jobId := service.GenerateJobId(sessionId, latestJobHeight, latestJobIndex, latestDifficulty)
 		newJob = newJob.Fill(jobId, latestNotifyTs, true)
 		stratumContext.(*context.StratumContext).LatestNotifyJobHeight = latestJobHeight
 		stratumContext.(*context.StratumContext).LatestNotifyTs = latestNotifyTs

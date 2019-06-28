@@ -23,6 +23,7 @@ func (self MsgHooker) OnInboundEvent(inputEvent cellnet.Event) (outputEvent cell
 	log.WithFields(log.Fields{
 		"input_event_session":inputEvent.Session(),
 		"input_event_message": inputEvent.Message(),
+		"session_id": inputEvent.Session().ID(),
 	}).Debugln("tcp.Stratum")
 	return inputEvent
 }
@@ -31,6 +32,7 @@ func (self MsgHooker) OnOutboundEvent(inputEvent cellnet.Event) (outputEvent cel
 	log.WithFields(log.Fields{
 		"output_event_session":inputEvent.Session(),
 		"output_event_message": inputEvent.Message(),
+		"session_id": inputEvent.Session().ID(),
 	}).Debugln("tcp.Stratum")
 	return inputEvent
 }
