@@ -210,17 +210,17 @@ func (c *Coin) MakeBlock(ctx *service.Register, header *service.BlockHeaderPart,
 	coinBaseBuf.Write([]byte(base.ExtraNonce2))
 	coinBaseBuf.Write([]byte(base.CoinBase2))
 
-	log.WithFields(log.Fields{
-		"version":         header.Version,
-		"prev_block_hash": header.PrevHash,
-		"timestamp":       header.NTime,
-		"bits":            header.NBits,
-		"nonce":           header.Nonce,
-		"coinbase_1":      base.CoinBase1,
-		"coinbase_2":      base.CoinBase2,
-		"extranonce_1":    base.ExtraNonce1,
-		"extranonce_2":    base.ExtraNonce2,
-	}).Debugln("make block source data")
+	//log.WithFields(log.Fields{
+	//	"version":         header.Version,
+	//	"prev_block_hash": header.PrevHash,
+	//	"timestamp":       header.NTime,
+	//	"bits":            header.NBits,
+	//	"nonce":           header.Nonce,
+	//	"coinbase_1":      base.CoinBase1,
+	//	"coinbase_2":      base.CoinBase2,
+	//	"extranonce_1":    base.ExtraNonce1,
+	//	"extranonce_2":    base.ExtraNonce2,
+	//}).Debugln("make block source data")
 
 	txBytes, err := hex.DecodeString(coinBaseBuf.String())
 	if err != nil {
@@ -268,21 +268,17 @@ func (c *Coin) MakeBlock(ctx *service.Register, header *service.BlockHeaderPart,
 
 	blockHeaderHash := block.Header.BlockHash()
 
-	log.WithFields(log.Fields{
-		"target_version":     blockVersion,
-		"target_timestamp":   timestamp.Unix(),
-		"target_prevHash":    prevHash.String(),
-		"target_nonce":       nonce,
-		"target_bits":        bits,
-		"coinbase_tx_hash":   coinBaseTx.Hash().String(),
-		"coinbase_tx_witness_hash": coinBaseMsgTx.WitnessHash().String(),
-		"merkle_root": merkleRoot.String(),
-		"block_hash":         blockHeaderHash.String(),
-		"block_tx_0":         blockTxes[0].Hash().String(),
-		"block_tx_len":       len(blockTxes),
-		"merkle_branch":      merkleBranch,
-		"coinbase_hex":       coinBaseBuf.String(),
-	}).Debugln("make block target data")
+	//log.WithFields(log.Fields{
+	//	"target_version":     blockVersion,
+	//	"target_timestamp":   timestamp.Unix(),
+	//	"target_prevHash":    prevHash.String(),
+	//	"target_nonce":       nonce,
+	//	"target_bits":        bits,
+	//	"merkle_root": merkleRoot.String(),
+	//	"block_hash":         blockHeaderHash.String(),
+	//	"merkle_branch":      merkleBranch,
+	//	"coinbase_hex":       coinBaseBuf.String(),
+	//}).Debugln("make block target data")
 
 	for _, tx := range blockTxes {
 		if err := block.AddTransaction(tx.MsgTx()); err != nil {
