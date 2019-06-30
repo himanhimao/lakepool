@@ -284,7 +284,6 @@ func Submit(s *server.Server, ev cellnet.Event) {
 			"error":       err,
 		}).Errorln("invalid jobId")
 		ev.Session().Send(errUnknownRESP)
-		ev.Session().Close()
 		return
 	}
 
@@ -298,30 +297,20 @@ func Submit(s *server.Server, ev cellnet.Event) {
 			"error":  err,
 		}).Errorln("invalid nTime, conversion error")
 		ev.Session().Send(errUnknownRESP)
-		ev.Session().Close()
 		return
 	}
 
-	log.WithFields(log.Fields{
-		"sid":           sid,
-		"height":        height,
-		"index":         index,
-		"difficulty":    difficulty,
-		"job_id":        jobId,
-		"coinbase_1":    job.CoinBase1,
-		"coinbase_2":    job.CoinBase2,
-		"merkle_branch": job.MerkleBranch,
-	}).Debugln("submitted info")
+	//log.WithFields(log.Fields{
+	//	"sid":           sid,
+	//	"height":        height,
+	//	"index":         index,
+	//	"difficulty":    difficulty,
+	//	"job_id":        jobId,i
+	//	"coinbase_1":    job.CoinBase1,
+	//	"coinbase_2":    job.CoinBase2,
+	//	"merkle_branch": job.MerkleBranch,
+	//}).Debugln("submitted info")
 
-	if s.GetJobRepo().GetLatestHeight() != height || job == nil || uint32(job.Meta.MinTimeTs) > nTimeTs {
-		log.WithFields(log.Fields{
-			"sid":         sid,
-			"worker_name": workerName,
-		}).Errorln("stratum servce job not found")
-		ev.Session().Send(errJobNotFoundResp)
-		ev.Session().Close()
-		return
-	}
 
 	slideWindow := stratumContext.(*context.StratumContext).SlideWindow
 	if slideWindow == nil {
@@ -335,6 +324,29 @@ func Submit(s *server.Server, ev cellnet.Event) {
 	}
 	slideWindow.Add(1)
 
+	submitRefuseRESP := proto.NewSubmitRESP(msgId, proto.SubmitRefuse)
+
+	if s.GetJobRepo().GetLatestHeight() != height {
+		log.WithFields(log.Fields{
+			"height": height,
+			"latest_height": s.GetJobRepo().GetLatestHeight(),
+		}).Errorln("submitted job is not the correct height")
+
+		stratumContext.(*context.StratumContext).RejectCount++
+		ev.Session().Send(submitRefuseRESP)
+		return
+	}
+
+	if job == nil || uint32(job.Meta.MinTimeTs) > nTimeTs {
+		log.WithFields(log.Fields{
+			"sid":         sid,
+			"worker_name": workerName,
+		}).Errorln("submited job not found")
+		stratumContext.(*context.StratumContext).ErrorCount++
+		ev.Session().Send(errJobNotFoundResp)
+		return
+	}
+
 	extraNonce1 := stratumContext.(*context.StratumContext).SessionID
 	share := job.ToShare()
 	share.ExtraNonce1 = extraNonce1
@@ -343,7 +355,6 @@ func Submit(s *server.Server, ev cellnet.Event) {
 	share.Nonce = nonce
 
 	shareResult, err := s.GetServiceMgr().GetSphereService().SubmitShare(share, difficulty)
-	submitRefuseRESP := proto.NewSubmitRESP(msgId, proto.SubmitRefuse)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"sid":         sid,
